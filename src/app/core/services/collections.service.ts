@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, switchMap, map, tap } from 'rxjs';
+import { Observable, forkJoin, switchMap, map, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   Collection,
@@ -64,16 +64,13 @@ export class CollectionsService {
   // ─────────────────────────────────────────────────────────────────────────
 
   deleteDocument(objectId: string, collection: string): Observable<void> {
-    return this.http
-      .delete<void>(`${environment.xcmBase}/xccm-spring/object/${objectId}`)
-      .pipe(
-        switchMap(() =>
-          this.http.post<void>(`${environment.wsVector}/documentos/borrar`, {
-            id: objectId,
-            coleccion: collection,
-          }),
-        ),
-      );
+    return forkJoin([
+      this.http.delete<void>(`${environment.xcmBase}/xccm-spring/object/${objectId}`),
+      this.http.post<void>(`${environment.wsVector}/documentos/borrar/`, {
+        id: objectId,
+        coleccion: collection,
+      }),
+    ]).pipe(map(() => void 0));
   }
 
   getDocumentsByCollection(coleccion: string): Observable<VectorDocument[]> {

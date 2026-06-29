@@ -12,7 +12,7 @@ import { AuthService } from '../../core/auth/auth.service';
 const PAGE_LABELS: Record<string, string> = {
   '/admin/knowledge-base': 'Base de Conocimientos',
   '/admin/politicas-normativas': 'Políticas y Normativas',
-  '/admin/politicas-reglas': 'Políticas y Reglas',
+  '/admin/politicas-reglas': 'Reglas y Procedimientos',
   '/admin/plantillas': 'Plantillas',
   '/operator/chat': 'Chat Agente',
 };
@@ -63,7 +63,7 @@ const PAGE_LABELS: Record<string, string> = {
             </a>
             <a routerLink="/admin/politicas-reglas" routerLinkActive="nav-item-active" class="nav-item">
               <svg lucideScale class="w-4 h-4 shrink-0"></svg>
-              <span>Políticas y Reglas</span>
+              <span>Reglas y Procedimientos</span>
             </a>
             <a routerLink="/admin/plantillas" routerLinkActive="nav-item-active" class="nav-item">
               <svg lucideLayoutTemplate class="w-4 h-4 shrink-0"></svg>

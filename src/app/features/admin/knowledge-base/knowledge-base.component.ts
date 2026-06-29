@@ -5,6 +5,7 @@ import {
   LucideCloudUpload, LucideExternalLink, LucideTriangleAlert,
   LucideChevronLeft, LucideChevronRight, LucideChevronsLeft, LucideChevronsRight,
   LucideX,
+  LucideTrash2,
 } from '@lucide/angular';
 import { KnowledgeDocument, DocumentStatus, KnowledgeBaseConfig } from '../../../core/models/document.model';
 import { UploadTask } from '../../../core/models/collection.model';
@@ -20,7 +21,7 @@ const PAGE_SIZE = 10;
     LucideRefreshCw, LucideSearch, LucideCircleAlert, LucideFileUp,
     LucideCloudUpload, LucideExternalLink, LucideTriangleAlert,
     LucideChevronLeft, LucideChevronRight, LucideChevronsLeft, LucideChevronsRight,
-    LucideX,
+    LucideX, LucideTrash2,
   ],
   template: `
     <div class="h-full overflow-y-auto" style="background: var(--color-bg)">
@@ -89,7 +90,6 @@ const PAGE_SIZE = 10;
               <thead>
                 <tr>
                   <th>Nombre</th>
-                  <th>Tipo</th>
                   <th>Formato</th>
                   <th>Fecha</th>
                   <th>Estado</th>
@@ -101,7 +101,6 @@ const PAGE_SIZE = 10;
                   @for (i of [1,2,3,4,5]; track i) {
                     <tr>
                       <td><div class="h-3 bg-slate-100 rounded-full animate-pulse w-3/5"></div></td>
-                      <td><div class="h-3 bg-slate-100 rounded-full animate-pulse w-2/5"></div></td>
                       <td><div class="h-5 w-12 bg-slate-100 rounded-full animate-pulse"></div></td>
                       <td><div class="h-3 bg-slate-100 rounded-full animate-pulse w-24"></div></td>
                       <td><div class="h-5 w-20 bg-slate-100 rounded-full animate-pulse"></div></td>
@@ -112,7 +111,7 @@ const PAGE_SIZE = 10;
 
                 @if (!loading() && paginatedDocuments().length === 0) {
                   <tr>
-                    <td colspan="6" class="inbox-table__state">
+                    <td colspan="5" class="inbox-table__state">
                       @if (searchQuery()) {
                         Sin resultados para los filtros aplicados
                       } @else {
@@ -125,12 +124,9 @@ const PAGE_SIZE = 10;
                 @for (doc of paginatedDocuments(); track doc.id) {
                   <tr>
                     <td>
-                      <span class="font-medium truncate" style="max-width: 260px; display: block">
+                      <span class="font-medium">
                         {{ doc.name }}
                       </span>
-                    </td>
-                    <td style="color: var(--color-text-secondary)">
-                      {{ doc.labelTipoDocumental ?? '—' }}
                     </td>
                     <td>
                       <span class="det-badge det-badge--neutral">
@@ -148,13 +144,20 @@ const PAGE_SIZE = 10;
                       </span>
                     </td>
                     <td class="inbox-table__actions">
-                      @if (doc.url) {
-                        <a [href]="doc.url" target="_blank" rel="noopener"
-                          (click)="$event.stopPropagation()"
-                          class="btn-actions-menu" title="Abrir documento">
-                          <svg lucideExternalLink class="w-4 h-4"></svg>
-                        </a>
-                      }
+                      <div class="flex items-center justify-center gap-1">
+                        @if (doc.url) {
+                          <a [href]="doc.url" target="_blank" rel="noopener"
+                            (click)="$event.stopPropagation()"
+                            class="btn-actions-menu" title="Abrir documento">
+                            <svg lucideExternalLink class="w-4 h-4"></svg>
+                          </a>
+                        }
+                        <button (click)="deleteDocument(doc.id, $event)"
+                          class="btn-actions-menu" title="Eliminar documento"
+                          style="color: var(--color-danger)">
+                          <svg lucideTrash2 class="w-4 h-4"></svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 }

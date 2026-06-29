@@ -11,7 +11,10 @@ export const xcmAuthInterceptor: HttpInterceptorFn = (req, next) => {
 
   if (token && isXcmRequest) {
     const authReq = req.clone({
-      setHeaders: { Authorization: `Bearer ${token}` },
+      setHeaders: {
+        Authorization: `Bearer ${token}`,
+        Token: token,
+      },
     });
     return next(authReq);
   }

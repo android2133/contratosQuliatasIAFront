@@ -66,7 +66,7 @@ export class ChatService {
   private readonly instruccionesSvc = inject(InstruccionesService);
 
   private historia = '[]';
-  private readonly COLECCION = 'DEMO_CONTRATOS2';
+  private readonly COLECCION = 'CONTRATOS_QLT';
 
   readonly instrucciones = signal(DEFAULT_INSTRUCCIONES);
 
