@@ -6,6 +6,18 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    match /config/folioChatContador {
+      allow read, write: if true;
+    }
+
+    match /conversacionesChat/{folio} {
+      allow read, write: if true;
+    }
+
+    match /auditoriaAdmin/{entrada} {
+      allow read, write: if true;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

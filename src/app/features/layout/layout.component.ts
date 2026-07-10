@@ -5,7 +5,8 @@ import { filter, map } from 'rxjs';
 import {
   LucideDatabase, LucideMessageSquare, LucideLogOut,
   LucideMenu, LucideX,
-  LucideBookOpen, LucideScale, LucideLayoutTemplate,
+  LucideBookOpen, LucideScale, LucideLayoutTemplate, LucideHistory, LucideCircleQuestionMark,
+  LucideFileClock,
 } from '@lucide/angular';
 import { AuthService } from '../../core/auth/auth.service';
 
@@ -14,7 +15,11 @@ const PAGE_LABELS: Record<string, string> = {
   '/admin/politicas-normativas': 'Políticas y Normativas',
   '/admin/politicas-reglas': 'Reglas y Procedimientos',
   '/admin/plantillas': 'Plantillas',
+  '/admin/conversaciones': 'Conversaciones de Operadores',
+  '/admin/auditoria': 'Registro de Cambios',
   '/operator/chat': 'Chat Agente',
+  '/operator/historial': 'Historial de Conversaciones',
+  '/operator/faq': 'Preguntas Frecuentes',
 };
 
 @Component({
@@ -23,7 +28,8 @@ const PAGE_LABELS: Record<string, string> = {
     RouterOutlet, RouterLink, RouterLinkActive,
     LucideDatabase, LucideMessageSquare, LucideLogOut,
     LucideMenu, LucideX,
-    LucideBookOpen, LucideScale, LucideLayoutTemplate,
+    LucideBookOpen, LucideScale, LucideLayoutTemplate, LucideHistory, LucideCircleQuestionMark,
+    LucideFileClock,
   ],
   template: `
     <div class="flex h-screen overflow-hidden" style="background: var(--color-bg)">
@@ -69,12 +75,28 @@ const PAGE_LABELS: Record<string, string> = {
               <svg lucideLayoutTemplate class="w-4 h-4 shrink-0"></svg>
               <span>Plantillas</span>
             </a>
+            <a routerLink="/admin/conversaciones" routerLinkActive="nav-item-active" class="nav-item">
+              <svg lucideHistory class="w-4 h-4 shrink-0"></svg>
+              <span>Conversaciones</span>
+            </a>
+            <a routerLink="/admin/auditoria" routerLinkActive="nav-item-active" class="nav-item">
+              <svg lucideFileClock class="w-4 h-4 shrink-0"></svg>
+              <span>Registro de Cambios</span>
+            </a>
           }
 
           @if (user()?.role === 'operador') {
             <a routerLink="/operator/chat" routerLinkActive="nav-item-active" class="nav-item">
               <svg lucideMessageSquare class="w-4 h-4 shrink-0"></svg>
               <span>Chat Agente</span>
+            </a>
+            <a routerLink="/operator/historial" routerLinkActive="nav-item-active" class="nav-item">
+              <svg lucideHistory class="w-4 h-4 shrink-0"></svg>
+              <span>Historial</span>
+            </a>
+            <a routerLink="/operator/faq" routerLinkActive="nav-item-active" class="nav-item">
+              <svg lucideCircleQuestionMark class="w-4 h-4 shrink-0"></svg>
+              <span>Preguntas frecuentes</span>
             </a>
           }
         </nav>

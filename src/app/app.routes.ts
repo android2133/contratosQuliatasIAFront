@@ -114,6 +114,20 @@ export const routes: Routes = [
                 (m) => m.CollectionManagerComponent
               ),
           },
+          {
+            path: 'conversaciones',
+            loadComponent: () =>
+              import('./features/admin/historial-conversaciones/historial-admin.component').then(
+                (m) => m.HistorialAdminComponent
+              ),
+          },
+          {
+            path: 'auditoria',
+            loadComponent: () =>
+              import('./features/admin/auditoria/auditoria.component').then(
+                (m) => m.AuditoriaComponent
+              ),
+          },
           { path: '', redirectTo: 'knowledge-base', pathMatch: 'full' },
         ],
       },
@@ -126,6 +140,20 @@ export const routes: Routes = [
             loadComponent: () =>
               import('./features/operator/chat/chat.component').then(
                 (m) => m.ChatComponent
+              ),
+          },
+          {
+            path: 'historial',
+            loadComponent: () =>
+              import('./features/operator/historial/historial.component').then(
+                (m) => m.HistorialComponent
+              ),
+          },
+          {
+            path: 'faq',
+            loadComponent: () =>
+              import('./features/operator/faq/faq.component').then(
+                (m) => m.FaqComponent
               ),
           },
           { path: '', redirectTo: 'chat', pathMatch: 'full' },

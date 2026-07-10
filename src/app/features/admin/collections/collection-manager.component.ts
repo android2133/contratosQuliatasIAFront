@@ -6,6 +6,8 @@ import {
   LucideZap, LucideDatabase, LucideAlertCircle,
 } from '@lucide/angular';
 import { CollectionsService } from '../../../core/services/collections.service';
+import { AuditoriaService } from '../../../core/services/auditoria.service';
+import { AuthService } from '../../../core/auth/auth.service';
 import { Collection, UploadTask } from '../../../core/models/collection.model';
 import { KnowledgeBaseConfig } from '../../../core/models/document.model';
 import { UploadTaskComponent } from './upload-task.component';
@@ -346,6 +348,8 @@ import { UploadTaskComponent } from './upload-task.component';
 })
 export class CollectionManagerComponent {
   private readonly svc = inject(CollectionsService);
+  private readonly auditoriaSvc = inject(AuditoriaService);
+  private readonly auth = inject(AuthService);
 
   readonly showCreateForm = signal(false);
   newCollectionName = '';
@@ -378,18 +382,41 @@ export class CollectionManagerComponent {
         this.newCollectionName = '';
         this.showCreateForm.set(false);
         this.creatingCollection.set(false);
+        this.registrarAuditoria('crear', name, 'exito');
       },
       error: (err: Error) => {
         this.createError.set(err.message ?? 'Error al crear la colección.');
         this.creatingCollection.set(false);
+        this.registrarAuditoria('crear', name, 'error', err.message);
       },
     });
   }
 
   deleteCollection(event: MouseEvent, id: string): void {
     event.stopPropagation();
+    const nombre = this.collections().find((c) => c.id === id)?.name ?? id;
     if (this.selectedCollection()?.id === id) this.selectedCollection.set(null);
     this.svc.deleteCollection(id);
+    this.registrarAuditoria('eliminar', nombre, 'exito');
+  }
+
+  private registrarAuditoria(
+    accion: 'crear' | 'eliminar',
+    elemento: string,
+    resultado: 'exito' | 'error',
+    mensajeError?: string,
+  ): void {
+    const admin = this.auth.currentUser();
+    this.auditoriaSvc.registrar({
+      adminId: admin?.id ?? '',
+      adminNombre: admin?.name ?? 'Desconocido',
+      adminEmail: admin?.email ?? '',
+      pantalla: 'Colecciones IA',
+      accion,
+      elemento,
+      resultado,
+      mensajeError,
+    });
   }
 
   onDragOver(e: DragEvent): void {
@@ -440,6 +467,9 @@ export class CollectionManagerComponent {
           this.uploadTasks.update((tasks) =>
             tasks.map((t) => (t.id === task.id ? { ...t, step } : t)),
           );
+          if (step === 'done') {
+            this.registrarAuditoria('crear', `${file.name} → ${collection.name}`, 'exito');
+          }
         },
         error: (err: Error) => {
           this.uploadTasks.update((tasks) =>
@@ -447,6 +477,7 @@ export class CollectionManagerComponent {
               t.id === task.id ? { ...t, step: 'error', error: err.message } : t,
             ),
           );
+          this.registrarAuditoria('crear', `${file.name} → ${collection.name}`, 'error', err.message);
         },
       });
     }

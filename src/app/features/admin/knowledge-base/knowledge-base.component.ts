@@ -10,6 +10,8 @@ import {
 import { KnowledgeDocument, DocumentStatus, KnowledgeBaseConfig } from '../../../core/models/document.model';
 import { UploadTask } from '../../../core/models/collection.model';
 import { CollectionsService } from '../../../core/services/collections.service';
+import { AuditoriaService } from '../../../core/services/auditoria.service';
+import { AuthService } from '../../../core/auth/auth.service';
 import { UploadPipelinePanelComponent } from '../../../shared/upload-pipeline-panel.component';
 
 const PAGE_SIZE = 10;
@@ -359,6 +361,8 @@ const PAGE_SIZE = 10;
 export class KnowledgeBaseComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly svc = inject(CollectionsService);
+  private readonly auditoriaSvc = inject(AuditoriaService);
+  private readonly auth = inject(AuthService);
 
   config!: KnowledgeBaseConfig;
 
@@ -502,10 +506,12 @@ export class KnowledgeBaseComponent implements OnInit {
         this.apiDocuments.update(docs => docs.filter(d => d.id !== doc.id));
         this.deletingId.set(null);
         this.confirmDoc.set(null);
+        this.registrarAuditoria('eliminar', doc.name, 'exito');
       },
-      error: () => {
+      error: (err: Error) => {
         this.deletingId.set(null);
         this.confirmDoc.set(null);
+        this.registrarAuditoria('eliminar', doc.name, 'error', err.message);
       },
     });
   }
@@ -548,6 +554,7 @@ export class KnowledgeBaseComponent implements OnInit {
           );
           if (step === 'done') {
             setTimeout(() => this.loadDocuments(), 1200);
+            this.registrarAuditoria('crear', file.name, 'exito');
           }
         },
         error: (err: Error) => {
@@ -556,9 +563,29 @@ export class KnowledgeBaseComponent implements OnInit {
               t.id === task.id ? { ...t, step: 'error', error: err.message } : t,
             ),
           );
+          this.registrarAuditoria('crear', file.name, 'error', err.message);
         },
       });
     }
+  }
+
+  private registrarAuditoria(
+    accion: 'crear' | 'eliminar',
+    elemento: string,
+    resultado: 'exito' | 'error',
+    mensajeError?: string,
+  ): void {
+    const admin = this.auth.currentUser();
+    this.auditoriaSvc.registrar({
+      adminId: admin?.id ?? '',
+      adminNombre: admin?.name ?? 'Desconocido',
+      adminEmail: admin?.email ?? '',
+      pantalla: this.config.title,
+      accion,
+      elemento,
+      resultado,
+      mensajeError,
+    });
   }
 
   onClearDone(): void {

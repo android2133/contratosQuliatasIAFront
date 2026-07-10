@@ -104,4 +104,12 @@ export class ChatService {
   resetHistoria(): void {
     this.historia = '[]';
   }
+
+  setHistoria(historia: string): void {
+    this.historia = historia || '[]';
+  }
+
+  getHistoria(): string {
+    return this.historia;
+  }
 }
