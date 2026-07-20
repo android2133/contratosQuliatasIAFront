@@ -2,10 +2,6 @@ export type DocumentStatus = 'processing' | 'indexed' | 'error';
 
 export interface KnowledgeBaseConfig {
   title: string;
-  expedienteId: string;
-  tipoDocumentalId: string;
-  folderId: string;
-  rutaBase: string;
   collection: string;
   expediente: string;
 }
@@ -18,7 +14,4 @@ export interface KnowledgeDocument {
   status: DocumentStatus;
   uploadedAt: Date;
   url?: string;
-  labelTipoDocumental?: string;
-  chunks?: number;
-  pages?: number;
 }

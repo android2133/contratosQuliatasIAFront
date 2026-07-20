@@ -2,7 +2,6 @@ import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { InstruccionesService } from './instrucciones.service';
 
 interface Contenido {
   mimetype: string;
@@ -14,14 +13,17 @@ interface ChatRequest {
   texto: string;
   contenidos: Contenido[];
   coleccion: string;
-  historia: string;
+  historia: unknown;
   instruccionesSistema: string;
+  modelo: string;
 }
 
 export interface ChatResponse {
   respuesta: string;
-  historia: string;
+  historia: unknown;
 }
+
+const MODELO = 'gemini-2.5-pro';
 
 const DEFAULT_INSTRUCCIONES = `Eres un agente en la empresa Empresa para una empresa contratista. Te encargas de generar agilemente contratos de los siguientes rubros:
     a) Generar contratos laborales
@@ -63,22 +65,11 @@ Puedes adicionalmente, analizar nuevos tipos de contrato pidiendo al usuario que
 @Injectable({ providedIn: 'root' })
 export class ChatService {
   private readonly http = inject(HttpClient);
-  private readonly instruccionesSvc = inject(InstruccionesService);
 
-  private historia = '[]';
+  private historia: unknown = '';
   private readonly COLECCION = 'CONTRATOS_QLT';
 
   readonly instrucciones = signal(DEFAULT_INSTRUCCIONES);
-
-  constructor() {
-    this.instruccionesSvc.cargar().subscribe((texto) => {
-      if (texto) this.instrucciones.set(texto);
-    });
-  }
-
-  setInstrucciones(value: string): void {
-    this.instrucciones.set(value.trim() || DEFAULT_INSTRUCCIONES);
-  }
 
   private resolveInstrucciones(): string {
     const fecha = new Date().toLocaleDateString('es-MX', {
@@ -94,22 +85,15 @@ export class ChatService {
       coleccion: this.COLECCION,
       historia: this.historia,
       instruccionesSistema: this.resolveInstrucciones(),
+      modelo: MODELO,
     };
 
     return this.http
-      .post<ChatResponse>(environment.wsChatbot, body)
+      .post<ChatResponse>(`${environment.conversationBaseUrl}/api-agente/`, body)
       .pipe(tap((res) => (this.historia = res.historia)));
   }
 
   resetHistoria(): void {
-    this.historia = '[]';
-  }
-
-  setHistoria(historia: string): void {
-    this.historia = historia || '[]';
-  }
-
-  getHistoria(): string {
-    return this.historia;
+    this.historia = '';
   }
 }

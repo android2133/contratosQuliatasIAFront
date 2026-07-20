@@ -4,29 +4,23 @@ import {
 } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   LucideSend, LucidePaperclip, LucideX, LucideBot, LucideUser,
   LucideFileText, LucideSparkles, LucideRefreshCw, LucideCopy, LucideCheck,
-  LucideSettings2, LucideHistory, LucideCircleQuestionMark, LucideMessageCircleQuestion,
+  LucideCircleQuestionMark, LucideMessageCircleQuestion,
 } from '@lucide/angular';
 import { Message, AttachedFile, TableData, ChartData } from '../../../core/models/message.model';
-import { ConversacionMensaje } from '../../../core/models/conversacion.model';
 import { PREGUNTAS_FRECUENTES } from '../../../core/models/faq.model';
 import { ChatService } from '../../../core/services/chat.service';
-import { InstruccionesService } from '../../../core/services/instrucciones.service';
-import { FolioService } from '../../../core/services/folio.service';
-import { ConversacionesService } from '../../../core/services/conversaciones.service';
-import { AuthService } from '../../../core/auth/auth.service';
 import { marked } from 'marked';
 
 @Component({
   selector: 'app-chat',
   imports: [
-    FormsModule, RouterLink,
+    FormsModule,
     LucideSend, LucidePaperclip, LucideX, LucideBot, LucideUser,
     LucideFileText, LucideSparkles, LucideRefreshCw, LucideCopy, LucideCheck,
-    LucideSettings2, LucideHistory, LucideCircleQuestionMark, LucideMessageCircleQuestion,
+    LucideCircleQuestionMark, LucideMessageCircleQuestion,
   ],
   template: `
     <div class="relative flex flex-col h-full" style="background: var(--color-bg)">
@@ -46,22 +40,6 @@ import { marked } from 'marked';
           </div>
         </div>
         <div class="flex items-center gap-1.5">
-          <button (click)="copyFolio()" class="folio-chip" type="button" [title]="'Copiar folio ' + (folio() || '')">
-            <span>{{ folio() || 'Generando folio…' }}</span>
-            @if (folioCopied()) {
-              <svg lucideCheck class="w-3 h-3"></svg>
-            } @else {
-              <svg lucideCopy class="w-3 h-3"></svg>
-            }
-          </button>
-          <a routerLink="/operator/historial" class="viewer-change-status-btn">
-            <svg lucideHistory class="w-3.5 h-3.5"></svg>
-            Historial
-          </a>
-          <button (click)="openModal()" class="viewer-change-status-btn" type="button">
-            <svg lucideSettings2 class="w-3.5 h-3.5"></svg>
-            Instrucciones
-          </button>
           <button (click)="clearChat()" class="secondary-button" type="button" style="min-height: 34px; font-size: var(--font-size-xs); gap: .35rem; padding: 0 .75rem">
             <svg lucideRefreshCw class="w-3.5 h-3.5"></svg>
             Nueva conversación
@@ -279,63 +257,6 @@ import { marked } from 'marked';
           </button>
         </div>
       </div>
-      <!-- Modal instrucciones -->
-      @if (showModal()) {
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-          (click)="closeModal()">
-          <div class="bg-white rounded-2xl shadow-xl w-full max-w-3xl mx-6 flex flex-col"
-            style="height: 80vh;"
-            (click)="$event.stopPropagation()">
-
-            <div class="flex items-center justify-between px-6 py-5 border-b border-slate-100 shrink-0">
-              <div class="flex items-center gap-2.5">
-                <svg lucideSettings2 class="w-5 h-5 text-slate-500"></svg>
-                <h2 class="text-base font-semibold text-slate-900">Instrucciones del agente</h2>
-              </div>
-              <button (click)="closeModal()"
-                class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
-                <svg lucideX class="w-5 h-5"></svg>
-              </button>
-            </div>
-
-            <div class="px-6 py-5 flex flex-col flex-1 gap-3 min-h-0">
-              <p class="text-sm text-slate-500 shrink-0">
-                Define el comportamiento del agente. Estos son los mensajes de sistema que recibe antes de cada conversación.
-              </p>
-              <textarea [ngModel]="instruccionesEdit()" (ngModelChange)="instruccionesEdit.set($event)"
-                class="flex-1 w-full text-sm text-slate-800 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3
-                       resize-none focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent
-                       placeholder-slate-400 leading-relaxed"
-                placeholder="Eres un asistente experto en..."></textarea>
-            </div>
-
-            <div class="flex items-center justify-end gap-3 px-6 py-4 shrink-0"
-              style="border-top: 1px solid var(--color-border)">
-              <button (click)="closeModal()" class="secondary-button">
-                Cancelar
-              </button>
-              <button (click)="saveInstrucciones()" class="primary-button">
-                Guardar
-              </button>
-            </div>
-
-          </div>
-        </div>
-      }
-
-      <!-- Toast: conversación nueva -->
-      @if (showFolioToast()) {
-        <div class="chat-toast" role="status">
-          <div class="chat-toast__icon">
-            <svg lucideCheck class="w-3 h-3"></svg>
-          </div>
-          <div>
-            <p class="chat-toast__title">Conversación iniciada</p>
-            <p class="chat-toast__folio">Folio {{ folio() }}</p>
-          </div>
-        </div>
-      }
-
     </div>
   `,
 })
@@ -347,22 +268,10 @@ export class ChatComponent implements AfterViewChecked, OnInit {
   private sanitizer = inject(DomSanitizer);
   private cdr = inject(ChangeDetectorRef);
   private chatService = inject(ChatService);
-  private instruccionesSvc = inject(InstruccionesService);
-  private folioSvc = inject(FolioService);
-  private conversacionesSvc = inject(ConversacionesService);
-  private auth = inject(AuthService);
-  private route = inject(ActivatedRoute);
-  private router = inject(Router);
 
   readonly messages = signal<Message[]>([]);
   readonly attachedFiles = signal<AttachedFile[]>([]);
   readonly copiedId = signal<string | null>(null);
-  readonly showModal = signal(false);
-  readonly instruccionesEdit = signal('');
-
-  readonly folio = signal('');
-  readonly folioCopied = signal(false);
-  readonly showFolioToast = signal(false);
 
   readonly preguntasFrecuentes = PREGUNTAS_FRECUENTES;
   readonly showFaqPanel = signal(false);
@@ -373,18 +282,7 @@ export class ChatComponent implements AfterViewChecked, OnInit {
   readonly canSend = computed(() => this.inputText().trim().length > 0);
 
   ngOnInit(): void {
-    const folioParam = this.route.snapshot.queryParamMap.get('folio');
-    if (folioParam) {
-      this.conversacionesSvc.obtenerPorFolio(folioParam).subscribe((conv) => {
-        if (conv) {
-          this.cargarConversacion(conv.folio, conv.historia, conv.mensajes);
-        } else {
-          this.startChat();
-        }
-      });
-    } else {
-      this.startChat();
-    }
+    this.startChat();
   }
 
   ngAfterViewChecked(): void {
@@ -451,7 +349,6 @@ export class ChatComponent implements AfterViewChecked, OnInit {
         );
         this.shouldScroll = true;
         this.cdr.detectChanges();
-        this.persistirConversacion();
       },
       error: (err: Error) => {
         const errMsg = err?.message ?? 'Error desconocido al conectar con el asistente.';
@@ -462,75 +359,13 @@ export class ChatComponent implements AfterViewChecked, OnInit {
         );
         this.shouldScroll = true;
         this.cdr.detectChanges();
-        this.persistirConversacion();
       },
     });
   }
 
   private startChat(): void {
     this.chatService.resetHistoria();
-    this.generarNuevoFolio();
     this.callChatApi('Hola');
-  }
-
-  private generarNuevoFolio(): void {
-    this.folio.set('');
-    this.folioSvc.generarFolio().subscribe((folio) => {
-      this.folio.set(folio);
-      this.showFolioToast.set(true);
-      setTimeout(() => this.showFolioToast.set(false), 4000);
-
-      const operador = this.auth.currentUser();
-      if (operador) {
-        this.conversacionesSvc
-          .crear(folio, operador.id, operador.email, operador.name)
-          .subscribe();
-      }
-    });
-  }
-
-  private cargarConversacion(folio: string, historia: string, mensajes: ConversacionMensaje[]): void {
-    this.folio.set(folio);
-    this.chatService.setHistoria(historia);
-    this.messages.set(mensajes.map((m) => ({
-      id: crypto.randomUUID(),
-      role: m.role,
-      content: m.content,
-      contentType: m.contentType,
-      timestamp: new Date(m.timestamp),
-    })));
-    this.shouldScroll = true;
-  }
-
-  private persistirConversacion(): void {
-    const folio = this.folio();
-    if (!folio) return;
-
-    const mensajes: ConversacionMensaje[] = this.messages()
-      .filter((m) => !m.isLoading)
-      .map((m) => ({
-        role: m.role,
-        content: m.content,
-        contentType: m.contentType,
-        timestamp: m.timestamp.toISOString(),
-      }));
-
-    this.conversacionesSvc
-      .actualizar(folio, this.chatService.getHistoria(), mensajes, this.extraerContratoUrl(mensajes))
-      .subscribe();
-  }
-
-  private extraerContratoUrl(mensajes: ConversacionMensaje[]): string | null {
-    const urlRegex = /https?:\/\/[^\s)]+/g;
-    let ultimaUrl: string | null = null;
-    for (const m of mensajes) {
-      if (m.role !== 'assistant') continue;
-      const encontradas = m.content.match(urlRegex);
-      if (encontradas && encontradas.length > 0) {
-        ultimaUrl = encontradas[encontradas.length - 1];
-      }
-    }
-    return ultimaUrl;
   }
 
   usarPreguntaFrecuente(pregunta: string): void {
@@ -539,36 +374,11 @@ export class ChatComponent implements AfterViewChecked, OnInit {
     setTimeout(() => this.messageInput?.nativeElement.focus(), 0);
   }
 
-  copyFolio(): void {
-    if (!this.folio()) return;
-    navigator.clipboard.writeText(this.folio()).then(() => {
-      this.folioCopied.set(true);
-      setTimeout(() => this.folioCopied.set(false), 2000);
-    });
-  }
-
-  openModal(): void {
-    this.instruccionesEdit.set(this.chatService.instrucciones());
-    this.showModal.set(true);
-  }
-
-  saveInstrucciones(): void {
-    const texto = this.instruccionesEdit();
-    this.chatService.setInstrucciones(texto);
-    this.instruccionesSvc.guardar(texto).subscribe();
-    this.showModal.set(false);
-  }
-
-  closeModal(): void {
-    this.showModal.set(false);
-  }
-
   clearChat(): void {
     this.messages.set([]);
     this.attachedFiles.set([]);
     this.inputText.set('');
     this.chatService.resetHistoria();
-    this.router.navigate([], { relativeTo: this.route, queryParams: {} });
     setTimeout(() => this.startChat(), 100);
   }
 

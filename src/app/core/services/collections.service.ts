@@ -1,15 +1,8 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, forkJoin, switchMap, map, tap } from 'rxjs';
+import { Observable, map, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import {
-  Collection,
-  SignedUrlItem,
-  SignedUrlResponse,
-  UploadObjectResponse,
-  UploadStep,
-  VectorDocument,
-} from '../models/collection.model';
+import { ArchivoItem, Collection, ListarArchivosResponse, SubirArchivoResponse, UploadStep } from '../models/collection.model';
 import { KnowledgeBaseConfig } from '../models/document.model';
 
 @Injectable({ providedIn: 'root' })
@@ -25,12 +18,12 @@ export class CollectionsService {
   readonly collections = this._collections.asReadonly();
 
   // ─────────────────────────────────────────────────────────────────────────
-  //  API — Crear colección
+  //  API — Colecciones vectoriales (admin_base_url)
   // ─────────────────────────────────────────────────────────────────────────
 
   createCollection(name: string): Observable<void> {
     return this.http
-      .post<void>(`${environment.wsVector}/coleccion/crear`, { coleccion: name })
+      .post<void>(`${environment.vectorAdminBaseUrl}/coleccion/crear`, { coleccion: name })
       .pipe(
         tap(() => {
           const col: Collection = {
@@ -45,8 +38,15 @@ export class CollectionsService {
       );
   }
 
-  deleteCollection(id: string): void {
-    this._collections.update((cols) => cols.filter((c) => c.id !== id));
+  deleteCollection(id: string): Observable<void> {
+    const nombre = this._collections().find((c) => c.id === id)?.name;
+    const borrar$ = nombre
+      ? this.http.post<void>(`${environment.vectorAdminBaseUrl}/coleccion/borrar`, { coleccion: nombre })
+      : new Observable<void>((s) => { s.next(); s.complete(); });
+
+    return borrar$.pipe(
+      tap(() => this._collections.update((cols) => cols.filter((c) => c.id !== id))),
+    );
   }
 
   incrementDocCount(collectionName: string): void {
@@ -60,138 +60,66 @@ export class CollectionsService {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  //  API — Listar documentos del expediente
+  //  API — Archivos (files_base_url)
   // ─────────────────────────────────────────────────────────────────────────
 
-  deleteDocument(objectId: string, collection: string): Observable<void> {
-    return forkJoin([
-      this.http.delete<void>(`${environment.xcmBase}/xccm-spring/object/${objectId}`),
-      this.http.post<void>(`${environment.wsVector}/documentos/borrar/`, {
-        id: objectId,
-        coleccion: collection,
-      }),
-    ]).pipe(map(() => void 0));
+  deleteDocument(objectId: string, coleccion: string): Observable<void> {
+    return this.http.delete<void>(
+      `${environment.filesBaseUrl}/archivos/${objectId}?eliminar_vectores=true&coleccion=${encodeURIComponent(coleccion)}&id_documento=${encodeURIComponent(objectId)}`,
+    );
   }
 
-  getDocumentsByCollection(coleccion: string): Observable<VectorDocument[]> {
+  getDocuments(coleccion: string, expediente: string): Observable<ArchivoItem[]> {
+    const params = new URLSearchParams();
+    if (coleccion) params.set('coleccion', coleccion);
+    if (expediente) params.set('expediente', expediente);
+
     return this.http
-      .post<VectorDocument[]>(`${environment.wsVector}/documentos/obtener`, {
-        id: '',
-        coleccion,
-      });
+      .get<ListarArchivosResponse>(`${environment.filesBaseUrl}/archivos?${params.toString()}`)
+      .pipe(map((res) => res.archivos ?? []));
   }
 
-  getDocuments(expedienteId: string, rutaBase: string): Observable<SignedUrlItem[]> {
-    return this.http
-      .post<SignedUrlResponse>(
-        `${environment.xcmBase}/xccm-spring/object/get-signed-urls`,
-        { idRegExp: expedienteId, rutaBase },
-      )
-      .pipe(map((res) => res.data ?? []));
+  contentUrl(id: string, descargar = false): string {
+    return `${environment.filesBaseUrl}/archivos/${id}/contenido${descargar ? '?descargar=true' : ''}`;
+  }
+
+  // Reclasifica un archivo ya subido (antes de que el backend guardara
+  // coleccion/expediente en la carga) sin necesidad de volver a subirlo.
+  reclassify(id: string, coleccion: string, expediente: string): Observable<void> {
+    const form = new FormData();
+    form.append('coleccion', coleccion);
+    form.append('expediente', expediente);
+    return this.http.put<void>(`${environment.filesBaseUrl}/archivos/${id}`, form);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  //  Pipeline secuencial — 4 pasos
-  //  Paso 1: Subir archivo a WebContent
-  //  Paso 2: Obtener URL firmada de Google Cloud
-  //  Paso 3: Vectorizar en wsVector
-  //  Paso 4: Completado
+  //  Subida + vectorización — 1 sola llamada (archivo público, sin pasos intermedios)
   // ─────────────────────────────────────────────────────────────────────────
 
   uploadAndIndex(file: File, cfg: KnowledgeBaseConfig): Observable<UploadStep> {
     return new Observable<UploadStep>((subscriber) => {
       subscriber.next('uploading');
 
-      const pipeline = this.uploadDocument(file, cfg).pipe(
+      const form = new FormData();
+      form.append('archivo', file);
+      form.append('vectorizar', 'true');
+      form.append('coleccion', cfg.collection);
+      form.append('expediente', cfg.expediente);
 
-        // ── Paso 2: Obtener URL firmada ──────────────────────────────────
-        tap(() => subscriber.next('signed-url')),
-        switchMap((uploadResult) =>
-          this.getSignedUrl(cfg).pipe(
-            map((url) => ({ uploadResult, url })),
-          ),
-        ),
+      subscriber.next('vectorizing');
 
-        // ── Paso 3: Vectorizar ───────────────────────────────────────────
-        tap(() => subscriber.next('vectorizing')),
-        switchMap(({ uploadResult, url }) =>
-          this.vectorize(file, cfg, uploadResult.objectId, url),
-        ),
-      );
-
-      const sub = pipeline.subscribe({
-        next: () => {
-          subscriber.next('done');
-          this.incrementDocCount(cfg.collection);
-          subscriber.complete();
-        },
-        error: (err: Error) => subscriber.error(err),
-      });
+      const sub = this.http
+        .post<SubirArchivoResponse>(`${environment.filesBaseUrl}/archivos`, form)
+        .subscribe({
+          next: () => {
+            subscriber.next('done');
+            this.incrementDocCount(cfg.collection);
+            subscriber.complete();
+          },
+          error: (err: Error) => subscriber.error(err),
+        });
 
       return () => sub.unsubscribe();
-    });
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  //  Métodos privados de API
-  // ─────────────────────────────────────────────────────────────────────────
-
-  private uploadDocument(file: File, cfg: KnowledgeBaseConfig): Observable<UploadObjectResponse> {
-    const ext = file.name.split('.').pop() ?? '';
-    const nameNoExt = file.name.replace(/\.[^/.]+$/, '');
-    const today = new Date().toISOString().split('T')[0];
-
-    const metadata = {
-      idFolder: cfg.folderId,
-      idRegExp: cfg.expedienteId,
-      idTipoDocumental: cfg.tipoDocumentalId,
-      name: nameNoExt,
-      ext,
-      properties: {
-        nombre: nameNoExt,
-        fecha_creacion: today,
-      },
-    };
-
-    const form = new FormData();
-    form.append('json', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-    form.append('file', file);
-
-    return this.http.post<UploadObjectResponse>(
-      `${environment.xcmBase}/xccm-spring/object`,
-      form,
-    );
-  }
-
-  private getSignedUrl(cfg: KnowledgeBaseConfig): Observable<string> {
-    return this.http
-      .post<SignedUrlResponse>(
-        `${environment.xcmBase}/xccm-spring/object/get-signed-urls`,
-        { idRegExp: cfg.expedienteId, rutaBase: cfg.rutaBase },
-      )
-      .pipe(
-        map((res) => {
-          const items = res.data ?? [];
-          const match = items.find((i) => i.idTipoDocumental === cfg.tipoDocumentalId);
-          if (!match) throw new Error('URL firmada no encontrada para el tipo documental.');
-          return match.url;
-        }),
-      );
-  }
-
-  private vectorize(
-    file: File,
-    cfg: KnowledgeBaseConfig,
-    objectId: string,
-    uri: string,
-  ): Observable<unknown> {
-    return this.http.post(`${environment.wsVector}/documentos/insertar`, {
-      coleccion: cfg.collection,
-      id: objectId ?? crypto.randomUUID(),
-      mimetype: file.type || 'application/pdf',
-      nombreArchivo: file.name,
-      uri,
-      expediente: cfg.expediente,
     });
   }
 }

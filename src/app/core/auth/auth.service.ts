@@ -1,13 +1,11 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
 import { Credentials, MOCK_USERS, User } from '../models/user.model';
-import { XcmAuthService } from './xcm-auth.service';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly SESSION_KEY = 'knowledgeai_session';
   private readonly router = inject(Router);
-  private readonly xcmAuth = inject(XcmAuthService);
 
   private _currentUser = signal<User | null>(this.loadSession());
 
@@ -29,11 +27,6 @@ export class AuthService {
     this._currentUser.set(user);
     sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(user));
 
-    // Login automático a WebContent al entrar como admin
-    if (user.role === 'admin') {
-      this.xcmAuth.loginToWebcontent().subscribe();
-    }
-
     const redirectUrl = user.role === 'admin' ? '/admin/knowledge-base' : '/operator/chat';
     this.router.navigateByUrl(redirectUrl);
     return { success: true };
@@ -42,7 +35,6 @@ export class AuthService {
   logout(): void {
     this._currentUser.set(null);
     sessionStorage.removeItem(this.SESSION_KEY);
-    this.xcmAuth.clearToken();
     this.router.navigateByUrl('/login');
   }
 

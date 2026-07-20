@@ -5,25 +5,24 @@ import {
   LucideCloudUpload, LucideExternalLink, LucideTriangleAlert,
   LucideChevronLeft, LucideChevronRight, LucideChevronsLeft, LucideChevronsRight,
   LucideX,
-  LucideTrash2,
+  LucideTrash2, LucideEye,
 } from '@lucide/angular';
 import { KnowledgeDocument, DocumentStatus, KnowledgeBaseConfig } from '../../../core/models/document.model';
 import { UploadTask } from '../../../core/models/collection.model';
 import { CollectionsService } from '../../../core/services/collections.service';
-import { AuditoriaService } from '../../../core/services/auditoria.service';
-import { AuthService } from '../../../core/auth/auth.service';
 import { UploadPipelinePanelComponent } from '../../../shared/upload-pipeline-panel.component';
+import { DocumentViewerModalComponent, DocumentoVisor } from '../../../shared/document-viewer-modal.component';
 
 const PAGE_SIZE = 10;
 
 @Component({
   selector: 'app-knowledge-base',
   imports: [
-    UploadPipelinePanelComponent,
+    UploadPipelinePanelComponent, DocumentViewerModalComponent,
     LucideRefreshCw, LucideSearch, LucideCircleAlert, LucideFileUp,
     LucideCloudUpload, LucideExternalLink, LucideTriangleAlert,
     LucideChevronLeft, LucideChevronRight, LucideChevronsLeft, LucideChevronsRight,
-    LucideX, LucideTrash2,
+    LucideX, LucideTrash2, LucideEye,
   ],
   template: `
     <div class="h-full overflow-y-auto" style="background: var(--color-bg)">
@@ -148,9 +147,13 @@ const PAGE_SIZE = 10;
                     <td class="inbox-table__actions">
                       <div class="flex items-center justify-center gap-1">
                         @if (doc.url) {
+                          <button (click)="verDocumento(doc)" type="button"
+                            class="btn-actions-menu" title="Ver documento">
+                            <svg lucideEye class="w-4 h-4"></svg>
+                          </button>
                           <a [href]="doc.url" target="_blank" rel="noopener"
                             (click)="$event.stopPropagation()"
-                            class="btn-actions-menu" title="Abrir documento">
+                            class="btn-actions-menu" title="Abrir en pestaña nueva">
                             <svg lucideExternalLink class="w-4 h-4"></svg>
                           </a>
                         }
@@ -356,13 +359,13 @@ const PAGE_SIZE = 10;
         </div>
       </div>
     }
+
+    <app-document-viewer-modal [documento]="documentoAbierto()" (cerrar)="documentoAbierto.set(null)" />
   `,
 })
 export class KnowledgeBaseComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly svc = inject(CollectionsService);
-  private readonly auditoriaSvc = inject(AuditoriaService);
-  private readonly auth = inject(AuthService);
 
   config!: KnowledgeBaseConfig;
 
@@ -376,6 +379,7 @@ export class KnowledgeBaseComponent implements OnInit {
   readonly deletingId = signal<string | null>(null);
   readonly confirmDoc = signal<KnowledgeDocument | null>(null);
   readonly uploadModalOpen = signal(false);
+  readonly documentoAbierto = signal<DocumentoVisor | null>(null);
 
   readonly currentPage = signal(1);
 
@@ -443,20 +447,17 @@ export class KnowledgeBaseComponent implements OnInit {
     this.loading.set(true);
     this.loadError.set('');
 
-    this.svc.getDocuments(this.config.expedienteId, this.config.rutaBase).subscribe({
+    this.svc.getDocuments(this.config.collection, this.config.expediente).subscribe({
       next: (items) => {
         this.apiDocuments.set(
           items.map((item) => ({
-            id: item.objectId,
-            name: item.nombre ?? `${item.archivo}.${item.extension}`,
-            size: 0,
-            type: item.extension?.toLowerCase() ?? 'file',
+            id: item.id,
+            name: item.nombre,
+            size: item.size,
+            type: this.extensionDe(item.nombre, item.content_type),
             status: 'indexed' as DocumentStatus,
-            uploadedAt: item.metadata?.fecha_creacion
-              ? new Date(item.metadata.fecha_creacion)
-              : new Date(),
-            url: item.url,
-            labelTipoDocumental: item.labelTipoDocumental,
+            uploadedAt: new Date(item.created_at),
+            url: this.svc.contentUrl(item.id),
           })),
         );
         this.loading.set(false);
@@ -487,6 +488,12 @@ export class KnowledgeBaseComponent implements OnInit {
     this.currentPage.set(1);
   }
 
+  // ── Visor ─────────────────────────────────────────────────────────────────
+  verDocumento(doc: KnowledgeDocument): void {
+    if (!doc.url) return;
+    this.documentoAbierto.set({ name: doc.name, url: doc.url, type: doc.type });
+  }
+
   // ── Borrar ────────────────────────────────────────────────────────────────
   deleteDocument(id: string, e: Event): void {
     e.stopPropagation();
@@ -506,12 +513,10 @@ export class KnowledgeBaseComponent implements OnInit {
         this.apiDocuments.update(docs => docs.filter(d => d.id !== doc.id));
         this.deletingId.set(null);
         this.confirmDoc.set(null);
-        this.registrarAuditoria('eliminar', doc.name, 'exito');
       },
-      error: (err: Error) => {
+      error: () => {
         this.deletingId.set(null);
         this.confirmDoc.set(null);
-        this.registrarAuditoria('eliminar', doc.name, 'error', err.message);
       },
     });
   }
@@ -554,7 +559,6 @@ export class KnowledgeBaseComponent implements OnInit {
           );
           if (step === 'done') {
             setTimeout(() => this.loadDocuments(), 1200);
-            this.registrarAuditoria('crear', file.name, 'exito');
           }
         },
         error: (err: Error) => {
@@ -563,29 +567,9 @@ export class KnowledgeBaseComponent implements OnInit {
               t.id === task.id ? { ...t, step: 'error', error: err.message } : t,
             ),
           );
-          this.registrarAuditoria('crear', file.name, 'error', err.message);
         },
       });
     }
-  }
-
-  private registrarAuditoria(
-    accion: 'crear' | 'eliminar',
-    elemento: string,
-    resultado: 'exito' | 'error',
-    mensajeError?: string,
-  ): void {
-    const admin = this.auth.currentUser();
-    this.auditoriaSvc.registrar({
-      adminId: admin?.id ?? '',
-      adminNombre: admin?.name ?? 'Desconocido',
-      adminEmail: admin?.email ?? '',
-      pantalla: this.config.title,
-      accion,
-      elemento,
-      resultado,
-      mensajeError,
-    });
   }
 
   onClearDone(): void {
@@ -618,5 +602,11 @@ export class KnowledgeBaseComponent implements OnInit {
 
   formatDate(date: Date): string {
     return date.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  private extensionDe(nombre: string, contentType: string): string {
+    const fromName = nombre.includes('.') ? nombre.split('.').pop() : undefined;
+    if (fromName) return fromName.toLowerCase();
+    return (contentType?.split('/').pop() ?? 'file').toLowerCase();
   }
 }

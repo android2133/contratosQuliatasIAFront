@@ -40,10 +40,6 @@ export const routes: Routes = [
             data: {
               config: {
                 title: 'Base de Conocimientos',
-                expedienteId: '019eefcc-31a5-732c-8f42-e7e633dad131',
-                tipoDocumentalId: '019eefc9-fd20-761d-8ed5-aa8a02ea9c3a',
-                folderId: '019cd4ec-9e79-7ae0-8d74-fc8612133702',
-                rutaBase: 'webcontent/TEST1/019eefca-bc2d-75b9-a4cc-c319e7fa1064/019eefcc-31a5-732c-8f42-e7e633dad131/',
                 collection: 'CONTRATOS_QLT',
                 expediente: 'BASE DE CONOCIMIENTO',
               },
@@ -58,10 +54,6 @@ export const routes: Routes = [
             data: {
               config: {
                 title: 'Políticas o Normativas a Considerar',
-                expedienteId: '019ef58d-f64a-7e6e-b21e-b02b1a5e0a5d',
-                tipoDocumentalId: '019eefc9-fd20-761d-8ed5-aa8a02ea9c3a',
-                folderId: '019cd4ec-9e79-7ae0-8d74-fc8612133702',
-                rutaBase: 'webcontent/TEST1/019eefca-bc2d-75b9-a4cc-c319e7fa1064/019ef58d-f64a-7e6e-b21e-b02b1a5e0a5d/',
                 collection: 'CONTRATOS_QLT',
                 expediente: 'POLITICAS O NORMATIVAS',
               },
@@ -76,10 +68,6 @@ export const routes: Routes = [
             data: {
               config: {
                 title: 'Reglas y procedimientos para Tipo de Contrato',
-                expedienteId: '019ef71d-49ce-74e4-b5d6-62cbb561a2df',
-                tipoDocumentalId: '019eefc9-fd20-761d-8ed5-aa8a02ea9c3a',
-                folderId: '019cd4ec-9e79-7ae0-8d74-fc8612133702',
-                rutaBase: 'webcontent/TEST1/019eefca-bc2d-75b9-a4cc-c319e7fa1064/019ef71d-49ce-74e4-b5d6-62cbb561a2df/',
                 collection: 'CONTRATOS_QLT',
                 expediente: 'REGLAS Y PROCEDIMIENTOS',
               },
@@ -94,10 +82,6 @@ export const routes: Routes = [
             data: {
               config: {
                 title: 'Plantillas',
-                expedienteId: '019ef720-2605-7554-9c78-a5d686610e4f',
-                tipoDocumentalId: '019eefc9-fd20-761d-8ed5-aa8a02ea9c3a',
-                folderId: '019cd4ec-9e79-7ae0-8d74-fc8612133702',
-                rutaBase: 'webcontent/TEST1/019eefca-bc2d-75b9-a4cc-c319e7fa1064/019ef720-2605-7554-9c78-a5d686610e4f/',
                 collection: 'CONTRATOS_QLT',
                 expediente: 'PLANTILLAS',
               },
@@ -115,17 +99,17 @@ export const routes: Routes = [
               ),
           },
           {
-            path: 'conversaciones',
+            path: 'estado-servicios',
             loadComponent: () =>
-              import('./features/admin/historial-conversaciones/historial-admin.component').then(
-                (m) => m.HistorialAdminComponent
+              import('./features/admin/health/health.component').then(
+                (m) => m.HealthComponent
               ),
           },
           {
-            path: 'auditoria',
+            path: 'administracion-vectorial',
             loadComponent: () =>
-              import('./features/admin/auditoria/auditoria.component').then(
-                (m) => m.AuditoriaComponent
+              import('./features/admin/vector-admin/vector-admin.component').then(
+                (m) => m.VectorAdminComponent
               ),
           },
           { path: '', redirectTo: 'knowledge-base', pathMatch: 'full' },
@@ -140,13 +124,6 @@ export const routes: Routes = [
             loadComponent: () =>
               import('./features/operator/chat/chat.component').then(
                 (m) => m.ChatComponent
-              ),
-          },
-          {
-            path: 'historial',
-            loadComponent: () =>
-              import('./features/operator/historial/historial.component').then(
-                (m) => m.HistorialComponent
               ),
           },
           {

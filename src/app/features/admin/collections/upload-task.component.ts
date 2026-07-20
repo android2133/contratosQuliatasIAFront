@@ -1,7 +1,7 @@
 import { Component, input, computed } from '@angular/core';
 import {
   LucideFileText, LucideCircleCheck, LucideAlertCircle, LucideLoader2,
-  LucideServer, LucideCloud, LucideBrainCircuit,
+  LucideServer, LucideBrainCircuit,
 } from '@lucide/angular';
 import { UploadTask } from '../../../core/models/collection.model';
 
@@ -10,20 +10,18 @@ type StepState = 'done' | 'active' | 'pending';
 interface StepVm {
   shortLabel: string;
   state: StepState;
-  icon: 'server' | 'cloud' | 'brain' | 'check';
+  icon: 'server' | 'brain' | 'check';
 }
 
-const STEP_ORDER = ['uploading', 'signed-url', 'vectorizing', 'done'] as const;
+const STEP_ORDER = ['uploading', 'vectorizing', 'done'] as const;
 const STEP_META = [
-  { shortLabel: 'Repositorio', icon: 'server' as const },
-  { shortLabel: 'URL Firmada', icon: 'cloud' as const },
-  { shortLabel: 'Vectorizar',  icon: 'brain' as const },
+  { shortLabel: 'Subiendo',   icon: 'server' as const },
+  { shortLabel: 'Vectorizar', icon: 'brain' as const },
   { shortLabel: 'Completado', icon: 'check' as const },
 ];
 const STEP_LABELS = [
-  'Subiendo a Repositorio Documental...',
-  'Generando URL Firmada de Google Cloud...',
-  'Indexando y Vectorizando en wsVector...',
+  'Subiendo archivo...',
+  'Indexando y vectorizando...',
   'Completado',
 ];
 
@@ -32,7 +30,7 @@ const STEP_LABELS = [
   standalone: true,
   imports: [
     LucideFileText, LucideCircleCheck, LucideAlertCircle, LucideLoader2,
-    LucideServer, LucideCloud, LucideBrainCircuit,
+    LucideServer, LucideBrainCircuit,
   ],
   template: `
     <div class="bg-zinc-900 border rounded-2xl overflow-hidden"
@@ -93,9 +91,6 @@ const STEP_LABELS = [
                   }
                   @if (step.state === 'pending' && step.icon === 'server') {
                     <svg lucideServer class="w-3 h-3 text-zinc-600"></svg>
-                  }
-                  @if (step.state === 'pending' && step.icon === 'cloud') {
-                    <svg lucideCloud class="w-3 h-3 text-zinc-600"></svg>
                   }
                   @if (step.state === 'pending' && step.icon === 'brain') {
                     <svg lucideBrainCircuit class="w-3 h-3 text-zinc-600"></svg>
