@@ -3,12 +3,11 @@ import { Router, RouterOutlet, RouterLink, RouterLinkActive, NavigationEnd } fro
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
 import {
-  LucideDatabase, LucideMessageSquare, LucideLogOut,
+  LucideDatabase, LucideMessageSquare,
   LucideMenu, LucideX,
   LucideBookOpen, LucideScale, LucideLayoutTemplate, LucideCircleQuestionMark,
-  LucideActivity, LucideDatabaseZap,
+  LucideActivity, LucideDatabaseZap, LucideChartColumn,
 } from '@lucide/angular';
-import { AuthService } from '../../core/auth/auth.service';
 
 const PAGE_LABELS: Record<string, string> = {
   '/admin/knowledge-base': 'Base de Conocimientos',
@@ -17,6 +16,7 @@ const PAGE_LABELS: Record<string, string> = {
   '/admin/plantillas': 'Plantillas',
   '/admin/estado-servicios': 'Estado de Servicios',
   '/admin/administracion-vectorial': 'Administración Vectorial',
+  '/admin/metricas': 'Métricas',
   '/operator/chat': 'Chat Agente',
   '/operator/faq': 'Preguntas Frecuentes',
 };
@@ -25,10 +25,10 @@ const PAGE_LABELS: Record<string, string> = {
   selector: 'app-layout',
   imports: [
     RouterOutlet, RouterLink, RouterLinkActive,
-    LucideDatabase, LucideMessageSquare, LucideLogOut,
+    LucideDatabase, LucideMessageSquare,
     LucideMenu, LucideX,
     LucideBookOpen, LucideScale, LucideLayoutTemplate, LucideCircleQuestionMark,
-    LucideActivity, LucideDatabaseZap,
+    LucideActivity, LucideDatabaseZap, LucideChartColumn,
   ],
   template: `
     <div class="flex h-screen overflow-hidden" style="background: var(--color-bg)">
@@ -54,46 +54,48 @@ const PAGE_LABELS: Record<string, string> = {
         <!-- Navigation -->
         <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           <p class="px-3 mb-2" style="font-size: var(--font-size-xs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--color-text-muted)">
-            {{ user()?.role === 'admin' ? 'Administración' : 'Herramientas' }}
+            Administración
           </p>
+          <a routerLink="/admin/knowledge-base" routerLinkActive="nav-item-active" class="nav-item">
+            <svg lucideDatabase class="w-4 h-4 shrink-0"></svg>
+            <span>Base de Conocimientos</span>
+          </a>
+          <a routerLink="/admin/politicas-normativas" routerLinkActive="nav-item-active" class="nav-item">
+            <svg lucideBookOpen class="w-4 h-4 shrink-0"></svg>
+            <span>Políticas y Normativas</span>
+          </a>
+          <a routerLink="/admin/politicas-reglas" routerLinkActive="nav-item-active" class="nav-item">
+            <svg lucideScale class="w-4 h-4 shrink-0"></svg>
+            <span>Reglas y Procedimientos</span>
+          </a>
+          <a routerLink="/admin/plantillas" routerLinkActive="nav-item-active" class="nav-item">
+            <svg lucideLayoutTemplate class="w-4 h-4 shrink-0"></svg>
+            <span>Plantillas</span>
+          </a>
+          <a routerLink="/admin/administracion-vectorial" routerLinkActive="nav-item-active" class="nav-item">
+            <svg lucideDatabaseZap class="w-4 h-4 shrink-0"></svg>
+            <span>Administración Vectorial</span>
+          </a>
+          <a routerLink="/admin/estado-servicios" routerLinkActive="nav-item-active" class="nav-item">
+            <svg lucideActivity class="w-4 h-4 shrink-0"></svg>
+            <span>Estado de Servicios</span>
+          </a>
+          <a routerLink="/admin/metricas" routerLinkActive="nav-item-active" class="nav-item">
+            <svg lucideChartColumn class="w-4 h-4 shrink-0"></svg>
+            <span>Métricas</span>
+          </a>
 
-          @if (user()?.role === 'admin') {
-            <a routerLink="/admin/knowledge-base" routerLinkActive="nav-item-active" class="nav-item">
-              <svg lucideDatabase class="w-4 h-4 shrink-0"></svg>
-              <span>Base de Conocimientos</span>
-            </a>
-            <a routerLink="/admin/politicas-normativas" routerLinkActive="nav-item-active" class="nav-item">
-              <svg lucideBookOpen class="w-4 h-4 shrink-0"></svg>
-              <span>Políticas y Normativas</span>
-            </a>
-            <a routerLink="/admin/politicas-reglas" routerLinkActive="nav-item-active" class="nav-item">
-              <svg lucideScale class="w-4 h-4 shrink-0"></svg>
-              <span>Reglas y Procedimientos</span>
-            </a>
-            <a routerLink="/admin/plantillas" routerLinkActive="nav-item-active" class="nav-item">
-              <svg lucideLayoutTemplate class="w-4 h-4 shrink-0"></svg>
-              <span>Plantillas</span>
-            </a>
-            <a routerLink="/admin/administracion-vectorial" routerLinkActive="nav-item-active" class="nav-item">
-              <svg lucideDatabaseZap class="w-4 h-4 shrink-0"></svg>
-              <span>Administración Vectorial</span>
-            </a>
-            <a routerLink="/admin/estado-servicios" routerLinkActive="nav-item-active" class="nav-item">
-              <svg lucideActivity class="w-4 h-4 shrink-0"></svg>
-              <span>Estado de Servicios</span>
-            </a>
-          }
-
-          @if (user()?.role === 'operador') {
-            <a routerLink="/operator/chat" routerLinkActive="nav-item-active" class="nav-item">
-              <svg lucideMessageSquare class="w-4 h-4 shrink-0"></svg>
-              <span>Chat Agente</span>
-            </a>
-            <a routerLink="/operator/faq" routerLinkActive="nav-item-active" class="nav-item">
-              <svg lucideCircleQuestionMark class="w-4 h-4 shrink-0"></svg>
-              <span>Preguntas frecuentes</span>
-            </a>
-          }
+          <p class="px-3 mt-4 mb-2" style="font-size: var(--font-size-xs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--color-text-muted)">
+            Herramientas
+          </p>
+          <a routerLink="/operator/chat" routerLinkActive="nav-item-active" class="nav-item">
+            <svg lucideMessageSquare class="w-4 h-4 shrink-0"></svg>
+            <span>Chat Agente</span>
+          </a>
+          <a routerLink="/operator/faq" routerLinkActive="nav-item-active" class="nav-item">
+            <svg lucideCircleQuestionMark class="w-4 h-4 shrink-0"></svg>
+            <span>Preguntas frecuentes</span>
+          </a>
         </nav>
       </aside>
 
@@ -137,29 +139,6 @@ const PAGE_LABELS: Record<string, string> = {
             </nav>
           </div>
 
-          <div class="topbar__right">
-            <!-- Nombre y rol del usuario -->
-            <div class="topbar__user hidden sm:block">
-              <span class="topbar__user-name">{{ user()?.name }}</span>
-              <span class="topbar__user-role capitalize">{{ user()?.role }}</span>
-            </div>
-
-            <!-- Avatar compacto (mobile) -->
-            <div class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 sm:hidden"
-              style="background: var(--color-primary)">
-              {{ user()?.avatar }}
-            </div>
-
-            <!-- Cerrar sesión -->
-            <button
-              class="topbar__icon-btn"
-              type="button"
-              title="Cerrar sesión"
-              (click)="logout()"
-            >
-              <svg lucideLogOut class="w-5 h-5"></svg>
-            </button>
-          </div>
         </header>
 
         <!-- Contenido -->
@@ -171,10 +150,8 @@ const PAGE_LABELS: Record<string, string> = {
   `,
 })
 export class LayoutComponent {
-  private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
-  readonly user = this.auth.currentUser;
   readonly sidebarOpen = signal(false);
 
   private readonly currentUrl = toSignal(
@@ -192,8 +169,4 @@ export class LayoutComponent {
     }
     return '';
   });
-
-  logout(): void {
-    this.auth.logout();
-  }
 }

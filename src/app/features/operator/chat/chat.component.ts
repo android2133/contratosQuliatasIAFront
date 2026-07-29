@@ -7,11 +7,12 @@ import { FormsModule } from '@angular/forms';
 import {
   LucideSend, LucidePaperclip, LucideX, LucideBot, LucideUser,
   LucideFileText, LucideSparkles, LucideRefreshCw, LucideCopy, LucideCheck,
-  LucideCircleQuestionMark, LucideMessageCircleQuestion,
+  LucideCircleQuestionMark, LucideMessageCircleQuestion, LucideSettings,
 } from '@lucide/angular';
 import { Message, AttachedFile, TableData, ChartData } from '../../../core/models/message.model';
-import { PREGUNTAS_FRECUENTES } from '../../../core/models/faq.model';
+import { PreguntaFrecuente } from '../../../core/models/faq.model';
 import { ChatService } from '../../../core/services/chat.service';
+import { FaqService } from '../../../core/services/faq.service';
 import { marked } from 'marked';
 
 @Component({
@@ -20,13 +21,13 @@ import { marked } from 'marked';
     FormsModule,
     LucideSend, LucidePaperclip, LucideX, LucideBot, LucideUser,
     LucideFileText, LucideSparkles, LucideRefreshCw, LucideCopy, LucideCheck,
-    LucideCircleQuestionMark, LucideMessageCircleQuestion,
+    LucideCircleQuestionMark, LucideMessageCircleQuestion, LucideSettings,
   ],
   template: `
     <div class="relative flex flex-col h-full" style="background: var(--color-bg)">
 
       <!-- Chat header -->
-      <div class="flex items-center justify-between px-6 py-4 shrink-0" style="background: var(--color-surface); border-bottom: 1px solid var(--color-border)">
+      <div class="flex items-center justify-between px-6 py-4 shrink-0" style="background: var(--color-surface); border-bottom: 1px solid var(--color-border); position: relative">
         <div class="flex items-center gap-3">
           <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background: var(--color-primary); box-shadow: 0 2px 8px rgba(148,27,128,.25)">
             <svg lucideSparkles class="w-4 h-4 text-white"></svg>
@@ -40,11 +41,63 @@ import { marked } from 'marked';
           </div>
         </div>
         <div class="flex items-center gap-1.5">
+          @if (conversationId()) {
+            <span class="folio-chip" title="ID de la conversación" (click)="copyConversationId()">
+              @if (copiedFolio()) {
+                <svg lucideCheck class="w-3 h-3"></svg>
+                Copiado
+              } @else {
+                {{ conversationId() }}
+              }
+            </span>
+          }
+          <button (click)="showSettingsPanel.set(!showSettingsPanel())" class="icon-button" type="button"
+            [class.active]="showSettingsPanel()" title="Configurar operador y contexto">
+            <svg lucideSettings class="w-4 h-4"></svg>
+          </button>
           <button (click)="clearChat()" class="secondary-button" type="button" style="min-height: 34px; font-size: var(--font-size-xs); gap: .35rem; padding: 0 .75rem">
             <svg lucideRefreshCw class="w-3.5 h-3.5"></svg>
             Nueva conversación
           </button>
         </div>
+
+        @if (showSettingsPanel()) {
+          <div style="position: absolute; top: 100%; right: 1.5rem; z-index: 20; width: 22rem; margin-top: .5rem;
+                      background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);
+                      box-shadow: var(--shadow-lg, 0 10px 30px rgba(0,0,0,.12)); padding: 1rem">
+            <div class="flex items-center justify-between" style="margin-bottom: .75rem">
+              <p style="font-size: var(--font-size-sm); font-weight: 800; color: var(--color-text-primary)">
+                Configuración del agente
+              </p>
+              <button (click)="showSettingsPanel.set(false)" class="icon-button" type="button" title="Cerrar">
+                <svg lucideX class="w-3.5 h-3.5"></svg>
+              </button>
+            </div>
+
+            <label style="display: block; font-size: var(--font-size-xs); font-weight: 700; color: var(--color-text-secondary); margin-bottom: .3rem">
+              Operador
+            </label>
+            <input
+              [ngModel]="operador()"
+              (ngModelChange)="operador.set($event)"
+              class="input-base"
+              placeholder="Nombre del operador"
+              style="margin-bottom: .85rem"
+            />
+
+            <label style="display: block; font-size: var(--font-size-xs); font-weight: 700; color: var(--color-text-secondary); margin-bottom: .3rem">
+              Contexto del agente
+            </label>
+            <textarea
+              [ngModel]="instrucciones()"
+              (ngModelChange)="instrucciones.set($event)"
+              class="input-base"
+              rows="6"
+              placeholder="Instrucciones del sistema para el agente..."
+              style="resize: vertical; font-family: var(--font-family)"
+            ></textarea>
+          </div>
+        }
       </div>
 
       <!-- Messages -->
@@ -220,7 +273,7 @@ import { marked } from 'marked';
               </button>
             </div>
             <div class="faq-quickpanel__list">
-              @for (item of preguntasFrecuentes; track item.pregunta) {
+              @for (item of preguntasFrecuentes(); track item.pregunta) {
                 <button type="button" (click)="usarPreguntaFrecuente(item.pregunta)" class="faq-quickpanel__item">
                   <svg lucideMessageCircleQuestion class="faq-quickpanel__item-icon"></svg>
                   <span>{{ item.pregunta }}</span>
@@ -268,13 +321,20 @@ export class ChatComponent implements AfterViewChecked, OnInit {
   private sanitizer = inject(DomSanitizer);
   private cdr = inject(ChangeDetectorRef);
   private chatService = inject(ChatService);
+  private faqService = inject(FaqService);
 
   readonly messages = signal<Message[]>([]);
   readonly attachedFiles = signal<AttachedFile[]>([]);
   readonly copiedId = signal<string | null>(null);
 
-  readonly preguntasFrecuentes = PREGUNTAS_FRECUENTES;
+  readonly preguntasFrecuentes = signal<PreguntaFrecuente[]>([]);
   readonly showFaqPanel = signal(false);
+
+  readonly conversationId = this.chatService.conversationId;
+  readonly operador = this.chatService.operador;
+  readonly instrucciones = this.chatService.instrucciones;
+  readonly showSettingsPanel = signal(false);
+  readonly copiedFolio = signal(false);
 
   readonly inputText = signal('');
   private shouldScroll = false;
@@ -283,6 +343,10 @@ export class ChatComponent implements AfterViewChecked, OnInit {
 
   ngOnInit(): void {
     this.startChat();
+    this.faqService.obtener().subscribe({
+      next: (preguntas) => this.preguntasFrecuentes.set(preguntas),
+      error: () => this.preguntasFrecuentes.set([]),
+    });
   }
 
   ngAfterViewChecked(): void {
@@ -344,7 +408,7 @@ export class ChatComponent implements AfterViewChecked, OnInit {
       next: (res) => {
         this.messages.update(msgs =>
           msgs.map(m => m.id === loadingId
-            ? { ...m, content: res.respuesta, contentType: 'markdown', isLoading: false }
+            ? { ...m, content: res.respuesta, contentType: 'markdown', isLoading: false, citas: res.citas }
             : m)
         );
         this.shouldScroll = true;
@@ -364,7 +428,7 @@ export class ChatComponent implements AfterViewChecked, OnInit {
   }
 
   private startChat(): void {
-    this.chatService.resetHistoria();
+    this.chatService.resetConversacion();
     this.callChatApi('Hola');
   }
 
@@ -378,7 +442,7 @@ export class ChatComponent implements AfterViewChecked, OnInit {
     this.messages.set([]);
     this.attachedFiles.set([]);
     this.inputText.set('');
-    this.chatService.resetHistoria();
+    this.chatService.resetConversacion();
     setTimeout(() => this.startChat(), 100);
   }
 
@@ -419,6 +483,15 @@ export class ChatComponent implements AfterViewChecked, OnInit {
     navigator.clipboard.writeText(msg.content).then(() => {
       this.copiedId.set(msg.id);
       setTimeout(() => this.copiedId.set(null), 2000);
+    });
+  }
+
+  copyConversationId(): void {
+    const id = this.conversationId();
+    if (!id) return;
+    navigator.clipboard.writeText(id).then(() => {
+      this.copiedFolio.set(true);
+      setTimeout(() => this.copiedFolio.set(false), 2000);
     });
   }
 

@@ -1,0 +1,17 @@
+{
+  "projects": {
+    "default": "qualitas-rag-engine"
+  },
+  "targets": {
+    "qualitas-rag-engine": {
+      "hosting": {
+        "produccion": [
+          "qualitas-rag-engine"
+        ],
+        "desa": [
+          "contratos-ia-desa"
+        ]
+      }
+    }
+  }
+}

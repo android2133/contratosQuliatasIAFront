@@ -1,3 +1,5 @@
+import { Cita } from '../services/chat.service';
+
 export type MessageRole = 'user' | 'assistant';
 export type MessageContentType = 'text' | 'markdown' | 'table' | 'chart' | 'image-card';
 
@@ -32,4 +34,5 @@ export interface Message {
   chartData?: ChartData;
   imageUrl?: string;
   isLoading?: boolean;
+  citas?: Cita[];
 }

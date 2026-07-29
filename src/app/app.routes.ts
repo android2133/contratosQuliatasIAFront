@@ -1,19 +1,10 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './core/auth/auth.guard';
-import { roleGuard } from './core/auth/role.guard';
 
 export const routes: Routes = [
   {
     path: '',
-    redirectTo: 'login',
+    redirectTo: 'admin/knowledge-base',
     pathMatch: 'full',
-  },
-  {
-    path: 'login',
-    loadComponent: () =>
-      import('./features/auth/login/login.component').then(
-        (m) => m.LoginComponent
-      ),
   },
   // Ruta standalone para el Administrador de Colecciones (auth propia)
   {
@@ -29,11 +20,9 @@ export const routes: Routes = [
       import('./features/layout/layout.component').then(
         (m) => m.LayoutComponent
       ),
-    canActivate: [authGuard],
     children: [
       {
         path: 'admin',
-        canActivate: [roleGuard(['admin'])],
         children: [
           {
             path: 'knowledge-base',
@@ -106,6 +95,13 @@ export const routes: Routes = [
               ),
           },
           {
+            path: 'metricas',
+            loadComponent: () =>
+              import('./features/admin/metrics/metrics.component').then(
+                (m) => m.MetricsComponent
+              ),
+          },
+          {
             path: 'administracion-vectorial',
             loadComponent: () =>
               import('./features/admin/vector-admin/vector-admin.component').then(
@@ -117,7 +113,6 @@ export const routes: Routes = [
       },
       {
         path: 'operator',
-        canActivate: [roleGuard(['operador'])],
         children: [
           {
             path: 'chat',
@@ -138,5 +133,5 @@ export const routes: Routes = [
       },
     ],
   },
-  { path: '**', redirectTo: 'login' },
+  { path: '**', redirectTo: 'admin/knowledge-base' },
 ];
