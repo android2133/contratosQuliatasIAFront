@@ -81,6 +81,13 @@ export const routes: Routes = [
               ).then((m) => m.KnowledgeBaseComponent),
           },
           {
+            path: 'instrucciones-sistema',
+            loadComponent: () =>
+              import(
+                './features/admin/instrucciones-sistema/instrucciones-sistema.component'
+              ).then((m) => m.InstruccionesSistemaComponent),
+          },
+          {
             path: 'colecciones',
             loadComponent: () =>
               import('./features/admin/collections/collection-manager.component').then(

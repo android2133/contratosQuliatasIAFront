@@ -1,6 +1,7 @@
-import { Component, inject, input, output, computed, signal, effect } from '@angular/core';
+import { Component, ElementRef, ViewChild, inject, input, output, computed, signal, effect } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { renderAsync } from 'docx-preview';
 import {
   LucideFileText, LucideExternalLink, LucideX, LucideFileWarning,
 } from '@lucide/angular';
@@ -11,10 +12,11 @@ export interface DocumentoVisor {
   type: string;
 }
 
-type Categoria = 'pdf' | 'imagen' | 'office' | 'texto' | 'desconocido';
+type Categoria = 'pdf' | 'imagen' | 'docx' | 'office' | 'texto' | 'desconocido';
 
 const EXT_IMAGEN = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'];
-const EXT_OFFICE = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
+const EXT_DOCX = ['docx'];
+const EXT_OFFICE = ['doc', 'xls', 'xlsx', 'ppt', 'pptx'];
 const EXT_TEXTO = ['txt', 'csv'];
 
 @Component({
@@ -56,6 +58,26 @@ const EXT_TEXTO = ['txt', 'csv'];
               @case ('imagen') {
                 <div class="w-full h-full flex items-center justify-center overflow-auto p-4">
                   <img [src]="doc.url" [alt]="doc.name" class="max-w-full max-h-full object-contain rounded-lg shadow-sm" />
+                </div>
+              }
+              @case ('docx') {
+                <div class="w-full h-full overflow-auto p-5" style="background: #e5e7eb">
+                  @if (docxCargando()) {
+                    <div class="flex items-center justify-center h-full" style="color: var(--color-text-muted)">
+                      Cargando vista previa…
+                    </div>
+                  }
+                  @if (docxError()) {
+                    <div class="flex flex-col items-center justify-center h-full gap-3 text-center">
+                      <svg lucideFileWarning class="w-7 h-7" style="color: var(--color-text-muted)"></svg>
+                      <p style="color: var(--color-text-secondary); font-size: var(--font-size-sm)">{{ docxError() }}</p>
+                      <a [href]="doc.url" target="_blank" rel="noopener" class="secondary-button">
+                        <svg lucideExternalLink class="w-3.5 h-3.5"></svg>
+                        Abrir en pestaña nueva
+                      </a>
+                    </div>
+                  }
+                  <div #docxContainer style="user-select: text" [style.display]="docxCargando() || docxError() ? 'none' : 'block'"></div>
                 </div>
               }
               @case ('office') {
@@ -122,6 +144,17 @@ export class DocumentViewerModalComponent {
   readonly textoCargando = signal(false);
   readonly textoError = signal('');
 
+  readonly docxCargando = signal(false);
+  readonly docxError = signal('');
+  private docxContainerEl: HTMLElement | null = null;
+  private docxRenderedUrl = '';
+
+  @ViewChild('docxContainer')
+  set docxContainerRef(ref: ElementRef<HTMLElement> | undefined) {
+    this.docxContainerEl = ref?.nativeElement ?? null;
+    this.renderDocxSiCorresponde();
+  }
+
   readonly categoria = computed<Categoria>(() => this.categorizar(this.documento()?.type ?? ''));
 
   readonly recursoUrl = computed<SafeResourceUrl | null>(() => {
@@ -133,12 +166,21 @@ export class DocumentViewerModalComponent {
   constructor() {
     effect(() => {
       const doc = this.documento();
-      if (doc && this.categorizar(doc.type) === 'texto') {
+      const cat = doc ? this.categorizar(doc.type) : null;
+
+      if (doc && cat === 'texto') {
         this.cargarTexto(doc.url);
       } else {
         this.textoContenido.set('');
         this.textoError.set('');
       }
+
+      if (!(doc && cat === 'docx')) {
+        this.docxRenderedUrl = '';
+        this.docxError.set('');
+      }
+
+      this.renderDocxSiCorresponde();
     });
   }
 
@@ -150,9 +192,41 @@ export class DocumentViewerModalComponent {
     const ext = tipo.toLowerCase().replace('.', '');
     if (ext === 'pdf') return 'pdf';
     if (EXT_IMAGEN.includes(ext)) return 'imagen';
+    if (EXT_DOCX.includes(ext)) return 'docx';
     if (EXT_OFFICE.includes(ext)) return 'office';
     if (EXT_TEXTO.includes(ext)) return 'texto';
     return 'desconocido';
+  }
+
+  // docx-preview solo renderiza HTML de solo lectura (sin contenteditable),
+  // así que la vista previa nunca es editable.
+  private renderDocxSiCorresponde(): void {
+    const doc = this.documento();
+    if (!doc || this.categorizar(doc.type) !== 'docx') return;
+    if (!this.docxContainerEl) return;
+    if (this.docxRenderedUrl === doc.url) return;
+
+    this.docxRenderedUrl = doc.url;
+    this.docxCargando.set(true);
+    this.docxError.set('');
+    this.docxContainerEl.innerHTML = '';
+
+    this.http.get(doc.url, { responseType: 'arraybuffer' }).subscribe({
+      next: (buffer) => {
+        const contenedor = this.docxContainerEl;
+        if (!contenedor) return;
+        renderAsync(buffer, contenedor, contenedor, { className: 'docx-render', inWrapper: true })
+          .then(() => this.docxCargando.set(false))
+          .catch(() => {
+            this.docxError.set('No se pudo renderizar la vista previa de este documento.');
+            this.docxCargando.set(false);
+          });
+      },
+      error: () => {
+        this.docxError.set('No se pudo cargar el documento.');
+        this.docxCargando.set(false);
+      },
+    });
   }
 
   private cargarTexto(url: string): void {

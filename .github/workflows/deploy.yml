@@ -1,4 +1,4 @@
-name: Deploy to Firebase
+name: Build
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  build_and_deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -23,11 +23,3 @@ jobs:
 
       - name: Build
         run: npm run build -- --configuration production
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
-
-      - name: Deploy to Firebase Hosting (producción)
-        run: npx firebase-tools deploy --only hosting:produccion --project qualitas-rag-engine --non-interactive

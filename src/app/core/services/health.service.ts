@@ -21,6 +21,7 @@ interface ServiceDef {
   key: string;
   name: string;
   baseUrl: string;
+  path?: string;
 }
 
 const TIMEOUT_MS = 10_000;
@@ -33,13 +34,13 @@ export class HealthService {
     { key: 'files', name: 'Servicio de archivos', baseUrl: environment.filesBaseUrl },
     { key: 'vectorAdmin', name: 'Administración vectorial', baseUrl: environment.vectorAdminBaseUrl },
     { key: 'vectorSearch', name: 'Búsqueda vectorial', baseUrl: environment.vectorSearchBaseUrl },
-    { key: 'conversation', name: 'Servicio conversacional', baseUrl: environment.conversationBaseUrl },
+    { key: 'conversation', name: 'Servicio conversacional', baseUrl: environment.conversationBaseUrl, path: '/docs' },
   ];
 
   check(def: ServiceDef): Observable<HealthCheckResult> {
     const started = performance.now();
 
-    return this.http.get(`${def.baseUrl}/`, { responseType: 'text', observe: 'response' }).pipe(
+    return this.http.get(`${def.baseUrl}${def.path ?? '/'}`, { responseType: 'text', observe: 'response' }).pipe(
       timeout(TIMEOUT_MS),
       map((res) => ({
         key: def.key,

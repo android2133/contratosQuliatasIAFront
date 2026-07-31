@@ -1,21 +1,6 @@
 {
   "hosting": [
     {
-      "target": "produccion",
-      "public": "dist/coleccionador/browser",
-      "ignore": [
-        "firebase.json",
-        "**/.*",
-        "**/node_modules/**"
-      ],
-      "rewrites": [
-        {
-          "source": "**",
-          "destination": "/index.html"
-        }
-      ]
-    },
-    {
       "target": "desa",
       "public": "dist/coleccionador/browser",
       "ignore": [

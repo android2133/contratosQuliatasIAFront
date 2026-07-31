@@ -4,24 +4,34 @@ import {
 } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
+import { DecimalPipe } from '@angular/common';
 import {
   LucideSend, LucidePaperclip, LucideX, LucideBot, LucideUser,
   LucideFileText, LucideSparkles, LucideRefreshCw, LucideCopy, LucideCheck,
-  LucideCircleQuestionMark, LucideMessageCircleQuestion, LucideSettings,
+  LucideCircleQuestionMark, LucideMessageCircleQuestion, LucideSettings, LucideHistory,
+  LucideTriangleAlert, LucideChevronLeft, LucideChevronRight,
 } from '@lucide/angular';
 import { Message, AttachedFile, TableData, ChartData } from '../../../core/models/message.model';
 import { PreguntaFrecuente } from '../../../core/models/faq.model';
+import { InstruccionSistema } from '../../../core/models/instruccion-sistema.model';
+import { Operador } from '../../../core/models/operador.model';
+import { Conversacion } from '../../../core/models/conversacion.model';
 import { ChatService } from '../../../core/services/chat.service';
 import { FaqService } from '../../../core/services/faq.service';
+import { InstruccionesSistemaService } from '../../../core/services/instrucciones-sistema.service';
+import { OperadoresService } from '../../../core/services/operadores.service';
 import { marked } from 'marked';
+
+const PAGE_SIZE_HISTORIAL = 8;
 
 @Component({
   selector: 'app-chat',
   imports: [
-    FormsModule,
+    FormsModule, DecimalPipe,
     LucideSend, LucidePaperclip, LucideX, LucideBot, LucideUser,
     LucideFileText, LucideSparkles, LucideRefreshCw, LucideCopy, LucideCheck,
-    LucideCircleQuestionMark, LucideMessageCircleQuestion, LucideSettings,
+    LucideCircleQuestionMark, LucideMessageCircleQuestion, LucideSettings, LucideHistory,
+    LucideTriangleAlert, LucideChevronLeft, LucideChevronRight,
   ],
   template: `
     <div class="relative flex flex-col h-full" style="background: var(--color-bg)">
@@ -51,7 +61,11 @@ import { marked } from 'marked';
               }
             </span>
           }
-          <button (click)="showSettingsPanel.set(!showSettingsPanel())" class="icon-button" type="button"
+          <button (click)="toggleHistorial()" class="icon-button" type="button"
+            [class.active]="showHistorialPanel()" title="Historial de conversaciones">
+            <svg lucideHistory class="w-4 h-4"></svg>
+          </button>
+          <button (click)="toggleSettings()" class="icon-button" type="button"
             [class.active]="showSettingsPanel()" title="Configurar operador y contexto">
             <svg lucideSettings class="w-4 h-4"></svg>
           </button>
@@ -77,25 +91,136 @@ import { marked } from 'marked';
             <label style="display: block; font-size: var(--font-size-xs); font-weight: 700; color: var(--color-text-secondary); margin-bottom: .3rem">
               Operador
             </label>
-            <input
-              [ngModel]="operador()"
-              (ngModelChange)="operador.set($event)"
-              class="input-base"
-              placeholder="Nombre del operador"
-              style="margin-bottom: .85rem"
-            />
+            @if (operadoresDisponibles().length > 0) {
+              <select
+                [ngModel]="operador()"
+                (ngModelChange)="operador.set($event)"
+                class="input-base"
+                style="margin-bottom: .85rem"
+              >
+                @for (op of operadoresDisponibles(); track op.operador) {
+                  <option [ngValue]="op.operador">{{ op.operador }}</option>
+                }
+              </select>
+            } @else {
+              <input
+                [ngModel]="operador()"
+                (ngModelChange)="operador.set($event)"
+                class="input-base"
+                placeholder="Nombre del operador"
+                style="margin-bottom: .85rem"
+              />
+            }
 
             <label style="display: block; font-size: var(--font-size-xs); font-weight: 700; color: var(--color-text-secondary); margin-bottom: .3rem">
               Contexto del agente
             </label>
+
+            @if (instruccionesDisponibles().length > 0) {
+              <div style="display: flex; flex-direction: column; gap: .3rem; max-height: 11rem; overflow-y: auto;
+                          border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: .35rem;
+                          margin-bottom: .5rem">
+                @for (item of instruccionesDisponibles(); track item.idInstruccion) {
+                  <button
+                    type="button"
+                    (click)="onSeleccionarInstruccion(item.idInstruccion)"
+                    style="text-align: left; border-radius: var(--radius-md); padding: .4rem .55rem; cursor: pointer;
+                           font-family: var(--font-family); border: 1px solid transparent"
+                    [style.background]="selectedInstruccionId() === item.idInstruccion ? 'var(--color-primary-subtle)' : 'transparent'"
+                    [style.border-color]="selectedInstruccionId() === item.idInstruccion ? 'var(--color-primary-light)' : 'transparent'"
+                  >
+                    <p style="margin: 0; font-size: var(--font-size-xs); line-height: 1.4;
+                              color: var(--color-text-primary); display: -webkit-box; -webkit-line-clamp: 3;
+                              -webkit-box-orient: vertical; overflow: hidden">
+                      {{ item.instruccionesSistema }}
+                    </p>
+                  </button>
+                }
+              </div>
+            }
+
             <textarea
               [ngModel]="instrucciones()"
-              (ngModelChange)="instrucciones.set($event)"
+              (ngModelChange)="onInstruccionesInput($event)"
               class="input-base"
               rows="6"
               placeholder="Instrucciones del sistema para el agente..."
               style="resize: vertical; font-family: var(--font-family)"
             ></textarea>
+          </div>
+        }
+
+        @if (showHistorialPanel()) {
+          <div style="position: absolute; top: 100%; right: 1.5rem; z-index: 20; width: 26rem; margin-top: .5rem;
+                      background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);
+                      box-shadow: var(--shadow-lg, 0 10px 30px rgba(0,0,0,.12)); padding: 1rem; display: flex; flex-direction: column">
+            <div class="flex items-center justify-between" style="margin-bottom: .75rem">
+              <p style="font-size: var(--font-size-sm); font-weight: 800; color: var(--color-text-primary)">
+                Historial ({{ operador() }})
+              </p>
+              <button (click)="showHistorialPanel.set(false)" class="icon-button" type="button" title="Cerrar">
+                <svg lucideX class="w-3.5 h-3.5"></svg>
+              </button>
+            </div>
+
+            @if (historialLoading()) {
+              <div class="flex flex-col gap-2">
+                @for (i of [0, 1, 2]; track i) {
+                  <div class="skeleton" style="height: 3.75rem; border-radius: var(--radius-md)"></div>
+                }
+              </div>
+            } @else if (historialError()) {
+              <div class="flex items-center gap-2" style="padding: .5rem 0">
+                <svg lucideTriangleAlert class="w-4 h-4 shrink-0" style="color: var(--color-danger)"></svg>
+                <p style="font-size: var(--font-size-xs); color: var(--color-danger)">
+                  No fue posible cargar el historial de este operador.
+                </p>
+              </div>
+            } @else if (historialConversaciones().length === 0) {
+              <p style="font-size: var(--font-size-xs); color: var(--color-text-muted)">
+                Este operador no tiene conversaciones registradas.
+              </p>
+            } @else {
+              <div style="display: flex; flex-direction: column; gap: .35rem; max-height: 22rem; overflow-y: auto">
+                @for (conv of paginatedHistorial(); track conv.conversationId) {
+                  <button
+                    type="button"
+                    (click)="retomarConversacion(conv)"
+                    style="text-align: left; border-radius: var(--radius-md); padding: .5rem .6rem; cursor: pointer;
+                           font-family: var(--font-family); border: 1px solid var(--color-border); background: transparent"
+                  >
+                    <p style="margin: 0 0 .25rem; font-size: var(--font-size-xs); line-height: 1.4;
+                              color: var(--color-text-primary); display: -webkit-box; -webkit-line-clamp: 2;
+                              -webkit-box-orient: vertical; overflow: hidden">
+                      {{ conv.tituloConversacion }}
+                    </p>
+                    <div class="flex items-center gap-2" style="font-size: 0.68rem; color: var(--color-text-muted)">
+                      <span>{{ formatDateTime(conv.inicio) }}</span>
+                      <span>·</span>
+                      <span>{{ conv.consultasRealizadas }} {{ conv.consultasRealizadas === 1 ? 'consulta' : 'consultas' }}</span>
+                      <span>·</span>
+                      <span>{{ conv.tokensTotal | number }} tokens</span>
+                    </div>
+                  </button>
+                }
+              </div>
+
+              @if (totalPagesHistorial() > 1) {
+                <div class="flex items-center justify-between" style="margin-top: .6rem; padding-top: .6rem; border-top: 1px solid var(--color-border)">
+                  <span style="font-size: var(--font-size-xs); color: var(--color-text-muted)">
+                    Página {{ currentPageHistorial() }} de {{ totalPagesHistorial() }}
+                  </span>
+                  <div class="flex items-center gap-1">
+                    <button class="pagination__btn" [disabled]="currentPageHistorial() === 1" (click)="prevPageHistorial()">
+                      <svg lucideChevronLeft class="w-3.5 h-3.5"></svg>
+                    </button>
+                    <button class="pagination__btn" [disabled]="currentPageHistorial() === totalPagesHistorial()" (click)="nextPageHistorial()">
+                      <svg lucideChevronRight class="w-3.5 h-3.5"></svg>
+                    </button>
+                  </div>
+                </div>
+              }
+            }
           </div>
         }
       </div>
@@ -322,6 +447,8 @@ export class ChatComponent implements AfterViewChecked, OnInit {
   private cdr = inject(ChangeDetectorRef);
   private chatService = inject(ChatService);
   private faqService = inject(FaqService);
+  private instruccionesSistemaService = inject(InstruccionesSistemaService);
+  private operadoresService = inject(OperadoresService);
 
   readonly messages = signal<Message[]>([]);
   readonly attachedFiles = signal<AttachedFile[]>([]);
@@ -336,6 +463,27 @@ export class ChatComponent implements AfterViewChecked, OnInit {
   readonly showSettingsPanel = signal(false);
   readonly copiedFolio = signal(false);
 
+  readonly instruccionesDisponibles = signal<InstruccionSistema[]>([]);
+  readonly selectedInstruccionId = signal<number | null>(null);
+
+  readonly operadoresDisponibles = signal<Operador[]>([]);
+
+  readonly showHistorialPanel = signal(false);
+  readonly historialLoading = signal(false);
+  readonly historialError = signal(false);
+  readonly historialConversaciones = signal<Conversacion[]>([]);
+
+  readonly currentPageHistorial = signal(1);
+  readonly totalPagesHistorial = computed(() =>
+    Math.max(1, Math.ceil(this.historialConversaciones().length / PAGE_SIZE_HISTORIAL)),
+  );
+  readonly paginatedHistorial = computed(() =>
+    this.historialConversaciones().slice(
+      (this.currentPageHistorial() - 1) * PAGE_SIZE_HISTORIAL,
+      this.currentPageHistorial() * PAGE_SIZE_HISTORIAL,
+    ),
+  );
+
   readonly inputText = signal('');
   private shouldScroll = false;
 
@@ -346,6 +494,14 @@ export class ChatComponent implements AfterViewChecked, OnInit {
     this.faqService.obtener().subscribe({
       next: (preguntas) => this.preguntasFrecuentes.set(preguntas),
       error: () => this.preguntasFrecuentes.set([]),
+    });
+    this.instruccionesSistemaService.listar().subscribe({
+      next: (items) => this.instruccionesDisponibles.set(items),
+      error: () => this.instruccionesDisponibles.set([]),
+    });
+    this.operadoresService.listar().subscribe({
+      next: (items) => this.operadoresDisponibles.set(items),
+      error: () => this.operadoresDisponibles.set([]),
     });
   }
 
@@ -430,6 +586,70 @@ export class ChatComponent implements AfterViewChecked, OnInit {
   private startChat(): void {
     this.chatService.resetConversacion();
     this.callChatApi('Hola');
+  }
+
+  onSeleccionarInstruccion(idInstruccion: number | null): void {
+    this.selectedInstruccionId.set(idInstruccion);
+    if (idInstruccion === null) return;
+    const item = this.instruccionesDisponibles().find((it) => it.idInstruccion === idInstruccion);
+    if (item) this.instrucciones.set(item.instruccionesSistema);
+  }
+
+  onInstruccionesInput(value: string): void {
+    this.instrucciones.set(value);
+    this.selectedInstruccionId.set(null);
+  }
+
+  toggleSettings(): void {
+    this.showHistorialPanel.set(false);
+    this.showSettingsPanel.set(!this.showSettingsPanel());
+  }
+
+  toggleHistorial(): void {
+    this.showSettingsPanel.set(false);
+    const next = !this.showHistorialPanel();
+    this.showHistorialPanel.set(next);
+    if (next) this.cargarHistorial();
+  }
+
+  private cargarHistorial(): void {
+    this.historialLoading.set(true);
+    this.historialError.set(false);
+    this.currentPageHistorial.set(1);
+    this.operadoresService.listarConversaciones(this.operador()).subscribe({
+      next: (conversaciones) => {
+        this.historialConversaciones.set(conversaciones);
+        this.historialLoading.set(false);
+      },
+      error: () => {
+        this.historialConversaciones.set([]);
+        this.historialError.set(true);
+        this.historialLoading.set(false);
+      },
+    });
+  }
+
+  retomarConversacion(conv: Conversacion): void {
+    this.chatService.resumirConversacion(conv.conversationId);
+    this.messages.set([{
+      id: crypto.randomUUID(),
+      role: 'assistant',
+      content: `**Continuando conversación** del ${this.formatDateTime(conv.inicio)}\n\n${conv.tituloConversacion}`,
+      contentType: 'markdown',
+      timestamp: new Date(),
+    }]);
+    this.showHistorialPanel.set(false);
+    this.shouldScroll = true;
+    setTimeout(() => this.messageInput?.nativeElement.focus(), 0);
+  }
+
+  prevPageHistorial(): void { this.currentPageHistorial.update((p) => Math.max(1, p - 1)); }
+  nextPageHistorial(): void { this.currentPageHistorial.update((p) => Math.min(this.totalPagesHistorial(), p + 1)); }
+
+  formatDateTime(iso: string): string {
+    return new Date(iso).toLocaleString('es-MX', {
+      day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
   }
 
   usarPreguntaFrecuente(pregunta: string): void {

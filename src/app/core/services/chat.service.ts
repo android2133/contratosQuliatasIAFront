@@ -79,4 +79,8 @@ export class ChatService {
   resetConversacion(): void {
     this._conversationId.set('');
   }
+
+  resumirConversacion(conversationId: string): void {
+    this._conversationId.set(conversationId);
+  }
 }
