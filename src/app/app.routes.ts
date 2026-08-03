@@ -115,6 +115,13 @@ export const routes: Routes = [
                 (m) => m.VectorAdminComponent
               ),
           },
+          {
+            path: 'bitacora',
+            loadComponent: () =>
+              import('./features/admin/bitacora/bitacora.component').then(
+                (m) => m.BitacoraComponent
+              ),
+          },
           { path: '', redirectTo: 'knowledge-base', pathMatch: 'full' },
         ],
       },

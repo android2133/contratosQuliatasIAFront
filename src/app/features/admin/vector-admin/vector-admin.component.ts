@@ -6,9 +6,11 @@ import {
 } from '@lucide/angular';
 import { VectorAdminService } from '../../../core/services/vector-admin.service';
 import { CollectionsService } from '../../../core/services/collections.service';
+import { BitacoraService } from '../../../core/services/bitacora.service';
 import { ActionState, ResultBoxComponent } from '../../../shared/result-box.component';
 
 const IDLE: ActionState = { status: 'idle', message: '', raw: '' };
+const PANTALLA = 'Administración Vectorial';
 
 @Component({
   selector: 'app-vector-admin',
@@ -247,6 +249,7 @@ const IDLE: ActionState = { status: 'idle', message: '', raw: '' };
 export class VectorAdminComponent implements OnInit {
   private readonly svc = inject(VectorAdminService);
   private readonly collectionsSvc = inject(CollectionsService);
+  private readonly bitacoraSvc = inject(BitacoraService);
 
   crearForm = { nombre: '' };
   borrarColForm = { nombre: '' };
@@ -299,8 +302,12 @@ export class VectorAdminComponent implements OnInit {
         this.crear = { status: 'ok', message: `Colección "${nombre}" creada`, raw: this.pretty(res) };
         this.crearForm.nombre = '';
         this.listarColecciones();
+        this.registrarBitacora('CREAR', nombre, nombre, true);
       },
-      error: (err: HttpErrorResponse) => (this.crear = this.errorState(err)),
+      error: (err: HttpErrorResponse) => {
+        this.crear = this.errorState(err);
+        this.registrarBitacora('CREAR', nombre, nombre, false);
+      },
     });
   }
 
@@ -314,10 +321,12 @@ export class VectorAdminComponent implements OnInit {
         this.borrarColConfirm.set(false);
         this.borrarColForm.nombre = '';
         this.listarColecciones();
+        this.registrarBitacora('ELIMINAR', nombre, nombre, true);
       },
       error: (err: HttpErrorResponse) => {
         this.borrarCol = this.errorState(err);
         this.borrarColConfirm.set(false);
+        this.registrarBitacora('ELIMINAR', nombre, nombre, false);
       },
     });
   }
@@ -327,17 +336,26 @@ export class VectorAdminComponent implements OnInit {
     if (!f.uri.trim() || !f.coleccion.trim()) return;
 
     this.insertar = { status: 'loading', message: '', raw: '' };
+    const id = f.id.trim() || crypto.randomUUID();
+    const nombreArchivo = f.nombreArchivo.trim() || f.uri.trim();
+    const expediente = f.expediente.trim() || f.coleccion.trim();
     this.svc.insertarDocumento({
       uri: f.uri.trim(),
       mimetype: f.mimetype.trim() || 'application/octet-stream',
-      nombreArchivo: f.nombreArchivo.trim() || f.uri.trim(),
+      nombreArchivo,
       coleccion: f.coleccion.trim(),
       web: f.web,
-      id: f.id.trim() || crypto.randomUUID(),
+      id,
       expediente: f.expediente.trim(),
     }).subscribe({
-      next: (res) => (this.insertar = { status: 'ok', message: 'Documento insertado', raw: this.pretty(res) }),
-      error: (err: HttpErrorResponse) => (this.insertar = this.errorState(err)),
+      next: (res) => {
+        this.insertar = { status: 'ok', message: 'Documento insertado', raw: this.pretty(res) };
+        this.registrarBitacora('VECTORIZAR', id, nombreArchivo, true, expediente);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.insertar = this.errorState(err);
+        this.registrarBitacora('VECTORIZAR', id, nombreArchivo, false, expediente);
+      },
     });
   }
 
@@ -361,10 +379,12 @@ export class VectorAdminComponent implements OnInit {
       next: (res) => {
         this.borrarDoc = { status: 'ok', message: 'Documento borrado', raw: this.pretty(res) };
         this.borrarDocConfirm.set(false);
+        this.registrarBitacora('ELIMINAR', id.trim(), id.trim(), true, coleccion.trim());
       },
       error: (err: HttpErrorResponse) => {
         this.borrarDoc = this.errorState(err);
         this.borrarDocConfirm.set(false);
+        this.registrarBitacora('ELIMINAR', id.trim(), id.trim(), false, coleccion.trim());
       },
     });
   }
@@ -381,9 +401,24 @@ export class VectorAdminComponent implements OnInit {
           message: `Archivo ${id} reclasificado a "${coleccion}" / "${expediente}"`,
           raw: '',
         };
+        this.registrarBitacora('ACTUALIZAR', id.trim(), id.trim(), true, expediente.trim());
       },
-      error: (err: HttpErrorResponse) => (this.reclasificarState = this.errorState(err)),
+      error: (err: HttpErrorResponse) => {
+        this.reclasificarState = this.errorState(err);
+        this.registrarBitacora('ACTUALIZAR', id.trim(), id.trim(), false, expediente.trim());
+      },
     });
+  }
+
+  private registrarBitacora(accion: string, documentoId: string, documentoNombre: string, exitoso: boolean, expediente = ''): void {
+    this.bitacoraSvc.registrar({
+      expediente,
+      pantalla: PANTALLA,
+      documento_id: documentoId,
+      documento_nombre: documentoNombre,
+      accion,
+      exitoso,
+    }).subscribe();
   }
 
   private errorState(err: HttpErrorResponse): ActionState {

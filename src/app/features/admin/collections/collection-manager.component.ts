@@ -432,7 +432,7 @@ export class CollectionManagerComponent {
         expediente: collection.name,
       };
       this.svc.uploadAndIndex(file, cfg).subscribe({
-        next: (step) => {
+        next: ({ step }) => {
           this.uploadTasks.update((tasks) =>
             tasks.map((t) => (t.id === task.id ? { ...t, step } : t)),
           );

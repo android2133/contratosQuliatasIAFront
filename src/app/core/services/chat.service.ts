@@ -16,7 +16,7 @@ interface ChatRequest {
   conversation_id: string;
   operador: string;
   expediente: string | null;
-  instruccionesSistema: string;
+  idInstruccionesSistema: number | null;
   modelo: string | null;
 }
 
@@ -38,8 +38,6 @@ export interface ChatResponse {
 const MODELO = 'gemini-2.5-flash';
 const DEFAULT_OPERADOR = 'Web 2';
 
-const DEFAULT_INSTRUCCIONES = `Hola`;
-
 @Injectable({ providedIn: 'root' })
 export class ChatService {
   private readonly http = inject(HttpClient);
@@ -50,16 +48,13 @@ export class ChatService {
   private readonly COLECCION = 'CONTRATOS_QLT';
 
   readonly operador = signal(DEFAULT_OPERADOR);
-  readonly instrucciones = signal(DEFAULT_INSTRUCCIONES);
+  readonly instrucciones = signal('');
 
-  private resolveInstrucciones(): string {
-    const fecha = new Date().toLocaleDateString('es-MX', {
-      day: '2-digit', month: 'long', year: 'numeric',
-    });
-    return this.instrucciones().replace('{fecha}', fecha);
-  }
-
-  send(texto: string, contenidos: Contenido[] = []): Observable<ChatResponse> {
+  send(
+    texto: string,
+    contenidos: Contenido[] = [],
+    idInstruccionesSistema: number | null = null,
+  ): Observable<ChatResponse> {
     const body: ChatRequest = {
       texto,
       contenidos,
@@ -67,7 +62,7 @@ export class ChatService {
       conversation_id: this._conversationId(),
       operador: this.operador(),
       expediente: null,
-      instruccionesSistema: this.resolveInstrucciones(),
+      idInstruccionesSistema,
       modelo: MODELO,
     };
 

@@ -490,18 +490,26 @@ export class ChatComponent implements AfterViewChecked, OnInit {
   readonly canSend = computed(() => this.inputText().trim().length > 0);
 
   ngOnInit(): void {
-    this.startChat();
     this.faqService.obtener().subscribe({
       next: (preguntas) => this.preguntasFrecuentes.set(preguntas),
       error: () => this.preguntasFrecuentes.set([]),
     });
-    this.instruccionesSistemaService.listar().subscribe({
-      next: (items) => this.instruccionesDisponibles.set(items),
-      error: () => this.instruccionesDisponibles.set([]),
-    });
     this.operadoresService.listar().subscribe({
       next: (items) => this.operadoresDisponibles.set(items),
       error: () => this.operadoresDisponibles.set([]),
+    });
+    // La primera instrucción del sistema del listado se toma como default
+    // antes de disparar el "Hola" inicial, para que ya viaje en esa petición.
+    this.instruccionesSistemaService.listar().subscribe({
+      next: (items) => {
+        this.instruccionesDisponibles.set(items);
+        if (items.length > 0) this.onSeleccionarInstruccion(items[0].idInstruccion);
+        this.startChat();
+      },
+      error: () => {
+        this.instruccionesDisponibles.set([]);
+        this.startChat();
+      },
     });
   }
 
@@ -560,7 +568,7 @@ export class ChatComponent implements AfterViewChecked, OnInit {
     }]);
     this.shouldScroll = true;
 
-    this.chatService.send(userInput, contenidos).subscribe({
+    this.chatService.send(userInput, contenidos, this.selectedInstruccionId()).subscribe({
       next: (res) => {
         this.messages.update(msgs =>
           msgs.map(m => m.id === loadingId
@@ -640,6 +648,7 @@ export class ChatComponent implements AfterViewChecked, OnInit {
     }]);
     this.showHistorialPanel.set(false);
     this.shouldScroll = true;
+    this.callChatApi('Hola');
     setTimeout(() => this.messageInput?.nativeElement.focus(), 0);
   }
 

@@ -2,7 +2,7 @@ import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import {
   LucideRefreshCw, LucideSearch, LucideCircleAlert, LucideFileUp,
-  LucideCloudUpload, LucideExternalLink, LucideTriangleAlert,
+  LucideCloudUpload, LucideDownload, LucideTriangleAlert,
   LucideChevronLeft, LucideChevronRight, LucideChevronsLeft, LucideChevronsRight,
   LucideX,
   LucideTrash2, LucideEye,
@@ -10,6 +10,7 @@ import {
 import { KnowledgeDocument, DocumentStatus, KnowledgeBaseConfig } from '../../../core/models/document.model';
 import { UploadTask } from '../../../core/models/collection.model';
 import { CollectionsService } from '../../../core/services/collections.service';
+import { BitacoraService } from '../../../core/services/bitacora.service';
 import { UploadPipelinePanelComponent } from '../../../shared/upload-pipeline-panel.component';
 import { DocumentViewerModalComponent, DocumentoVisor } from '../../../shared/document-viewer-modal.component';
 
@@ -20,7 +21,7 @@ const PAGE_SIZE = 10;
   imports: [
     UploadPipelinePanelComponent, DocumentViewerModalComponent,
     LucideRefreshCw, LucideSearch, LucideCircleAlert, LucideFileUp,
-    LucideCloudUpload, LucideExternalLink, LucideTriangleAlert,
+    LucideCloudUpload, LucideDownload, LucideTriangleAlert,
     LucideChevronLeft, LucideChevronRight, LucideChevronsLeft, LucideChevronsRight,
     LucideX, LucideTrash2, LucideEye,
   ],
@@ -151,10 +152,10 @@ const PAGE_SIZE = 10;
                             class="btn-actions-menu" title="Ver documento">
                             <svg lucideEye class="w-4 h-4"></svg>
                           </button>
-                          <a [href]="doc.url" target="_blank" rel="noopener"
-                            (click)="$event.stopPropagation()"
-                            class="btn-actions-menu" title="Abrir en pestaña nueva">
-                            <svg lucideExternalLink class="w-4 h-4"></svg>
+                          <a [href]="doc.downloadUrl" rel="noopener"
+                            (click)="registrarDescarga(doc); $event.stopPropagation()"
+                            class="btn-actions-menu" title="Descargar documento">
+                            <svg lucideDownload class="w-4 h-4"></svg>
                           </a>
                         }
                         <button (click)="deleteDocument(doc.id, $event)"
@@ -366,6 +367,7 @@ const PAGE_SIZE = 10;
 export class KnowledgeBaseComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly svc = inject(CollectionsService);
+  private readonly bitacoraSvc = inject(BitacoraService);
 
   config!: KnowledgeBaseConfig;
 
@@ -458,6 +460,7 @@ export class KnowledgeBaseComponent implements OnInit {
             status: 'indexed' as DocumentStatus,
             uploadedAt: new Date(item.created_at),
             url: this.svc.contentUrl(item.id),
+            downloadUrl: this.svc.contentUrl(item.id, true),
           })),
         );
         this.loading.set(false);
@@ -494,6 +497,10 @@ export class KnowledgeBaseComponent implements OnInit {
     this.documentoAbierto.set({ name: doc.name, url: doc.url, type: doc.type });
   }
 
+  registrarDescarga(doc: KnowledgeDocument): void {
+    this.registrarBitacora('DESCARGAR', doc.id, doc.name, true);
+  }
+
   // ── Borrar ────────────────────────────────────────────────────────────────
   deleteDocument(id: string, e: Event): void {
     e.stopPropagation();
@@ -513,10 +520,12 @@ export class KnowledgeBaseComponent implements OnInit {
         this.apiDocuments.update(docs => docs.filter(d => d.id !== doc.id));
         this.deletingId.set(null);
         this.confirmDoc.set(null);
+        this.registrarBitacora('ELIMINAR', doc.id, doc.name, true);
       },
       error: () => {
         this.deletingId.set(null);
         this.confirmDoc.set(null);
+        this.registrarBitacora('ELIMINAR', doc.id, doc.name, false);
       },
     });
   }
@@ -553,12 +562,13 @@ export class KnowledgeBaseComponent implements OnInit {
       this.uploadTasks.update((t) => [task, ...t]);
 
       this.svc.uploadAndIndex(file, this.config).subscribe({
-        next: (step) => {
+        next: ({ step, archivo }) => {
           this.uploadTasks.update((tasks) =>
             tasks.map((t) => (t.id === task.id ? { ...t, step } : t)),
           );
           if (step === 'done') {
             setTimeout(() => this.loadDocuments(), 1200);
+            this.registrarBitacora('CREAR', archivo?.id ?? '', archivo?.nombre ?? file.name, true);
           }
         },
         error: (err: Error) => {
@@ -567,6 +577,7 @@ export class KnowledgeBaseComponent implements OnInit {
               t.id === task.id ? { ...t, step: 'error', error: err.message } : t,
             ),
           );
+          this.registrarBitacora('CREAR', '', file.name, false);
         },
       });
     }
@@ -608,5 +619,16 @@ export class KnowledgeBaseComponent implements OnInit {
     const fromName = nombre.includes('.') ? nombre.split('.').pop() : undefined;
     if (fromName) return fromName.toLowerCase();
     return (contentType?.split('/').pop() ?? 'file').toLowerCase();
+  }
+
+  private registrarBitacora(accion: string, documentoId: string, documentoNombre: string, exitoso: boolean): void {
+    this.bitacoraSvc.registrar({
+      expediente: this.config.expediente,
+      pantalla: this.config.title,
+      documento_id: documentoId,
+      documento_nombre: documentoNombre,
+      accion,
+      exitoso,
+    }).subscribe();
   }
 }

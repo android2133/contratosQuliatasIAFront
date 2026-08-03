@@ -14,4 +14,5 @@ export interface KnowledgeDocument {
   status: DocumentStatus;
   uploadedAt: Date;
   url?: string;
+  downloadUrl?: string;
 }

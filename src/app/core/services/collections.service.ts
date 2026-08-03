@@ -96,9 +96,9 @@ export class CollectionsService {
   //  Subida + vectorización — 1 sola llamada (archivo público, sin pasos intermedios)
   // ─────────────────────────────────────────────────────────────────────────
 
-  uploadAndIndex(file: File, cfg: KnowledgeBaseConfig): Observable<UploadStep> {
-    return new Observable<UploadStep>((subscriber) => {
-      subscriber.next('uploading');
+  uploadAndIndex(file: File, cfg: KnowledgeBaseConfig): Observable<{ step: UploadStep; archivo?: ArchivoItem }> {
+    return new Observable<{ step: UploadStep; archivo?: ArchivoItem }>((subscriber) => {
+      subscriber.next({ step: 'uploading' });
 
       const form = new FormData();
       form.append('archivo', file);
@@ -106,13 +106,13 @@ export class CollectionsService {
       form.append('coleccion', cfg.collection);
       form.append('expediente', cfg.expediente);
 
-      subscriber.next('vectorizing');
+      subscriber.next({ step: 'vectorizing' });
 
       const sub = this.http
         .post<SubirArchivoResponse>(`${environment.filesBaseUrl}/archivos`, form)
         .subscribe({
-          next: () => {
-            subscriber.next('done');
+          next: (res) => {
+            subscriber.next({ step: 'done', archivo: res.archivo });
             this.incrementDocCount(cfg.collection);
             subscriber.complete();
           },

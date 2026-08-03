@@ -7,9 +7,12 @@ import {
   LucideChevronsLeft, LucideChevronLeft, LucideChevronRight, LucideChevronsRight,
 } from '@lucide/angular';
 import { InstruccionesSistemaService } from '../../../core/services/instrucciones-sistema.service';
+import { BitacoraService } from '../../../core/services/bitacora.service';
 import { InstruccionSistema } from '../../../core/models/instruccion-sistema.model';
 
 const PAGE_SIZE = 10;
+const PANTALLA = 'Instrucciones del Sistema';
+const EXPEDIENTE = 'INSTRUCCIONES DEL SISTEMA';
 
 @Component({
   selector: 'app-instrucciones-sistema',
@@ -181,6 +184,7 @@ const PAGE_SIZE = 10;
 })
 export class InstruccionesSistemaComponent implements OnInit {
   private readonly svc = inject(InstruccionesSistemaService);
+  private readonly bitacoraSvc = inject(BitacoraService);
 
   readonly instrucciones = signal<InstruccionSistema[]>([]);
   readonly loading = signal(true);
@@ -262,15 +266,17 @@ export class InstruccionesSistemaComponent implements OnInit {
     this.creando.set(true);
     this.crearError.set('');
     this.svc.crear(texto).subscribe({
-      next: () => {
+      next: (nueva) => {
         this.creando.set(false);
         this.mostrarCrear.set(false);
         this.nuevaInstruccion = '';
         this.cargar();
+        this.registrarBitacora('CREAR', nueva.idInstruccion, texto, true);
       },
       error: (err: HttpErrorResponse) => {
         this.creando.set(false);
         this.crearError.set(this.mensajeError(err));
+        this.registrarBitacora('CREAR', '', texto, false);
       },
     });
   }
@@ -299,10 +305,12 @@ export class InstruccionesSistemaComponent implements OnInit {
         this.guardando.set(false);
         this.editandoId.set(null);
         this.cargar();
+        this.registrarBitacora('ACTUALIZAR', item.idInstruccion, texto, true);
       },
       error: (err: HttpErrorResponse) => {
         this.guardando.set(false);
         this.editarError.set(this.mensajeError(err));
+        this.registrarBitacora('ACTUALIZAR', item.idInstruccion, texto, false);
       },
     });
   }
@@ -315,12 +323,25 @@ export class InstruccionesSistemaComponent implements OnInit {
         this.confirmandoEliminarId.set(null);
         this.instrucciones.update((items) => items.filter((it) => it.idInstruccion !== item.idInstruccion));
         this.currentPage.update((p) => Math.min(p, this.totalPages()));
+        this.registrarBitacora('ELIMINAR', item.idInstruccion, item.instruccionesSistema, true);
       },
       error: () => {
         this.eliminandoId.set(null);
         this.confirmandoEliminarId.set(null);
+        this.registrarBitacora('ELIMINAR', item.idInstruccion, item.instruccionesSistema, false);
       },
     });
+  }
+
+  private registrarBitacora(accion: string, documentoId: string | number, documentoNombre: string, exitoso: boolean): void {
+    this.bitacoraSvc.registrar({
+      expediente: EXPEDIENTE,
+      pantalla: PANTALLA,
+      documento_id: String(documentoId),
+      documento_nombre: documentoNombre.length > 120 ? `${documentoNombre.slice(0, 120)}…` : documentoNombre,
+      accion,
+      exitoso,
+    }).subscribe();
   }
 
   private mensajeError(err: HttpErrorResponse): string {
