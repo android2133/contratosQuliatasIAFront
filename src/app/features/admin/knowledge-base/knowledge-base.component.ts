@@ -5,7 +5,7 @@ import {
   LucideCloudUpload, LucideDownload, LucideTriangleAlert,
   LucideChevronLeft, LucideChevronRight, LucideChevronsLeft, LucideChevronsRight,
   LucideX,
-  LucideTrash2, LucideEye,
+  LucideTrash2, LucideEye, LucideCheck,
 } from '@lucide/angular';
 import { KnowledgeDocument, DocumentStatus, KnowledgeBaseConfig } from '../../../core/models/document.model';
 import { UploadTask } from '../../../core/models/collection.model';
@@ -23,7 +23,7 @@ const PAGE_SIZE = 10;
     LucideRefreshCw, LucideSearch, LucideCircleAlert, LucideFileUp,
     LucideCloudUpload, LucideDownload, LucideTriangleAlert,
     LucideChevronLeft, LucideChevronRight, LucideChevronsLeft, LucideChevronsRight,
-    LucideX, LucideTrash2, LucideEye,
+    LucideX, LucideTrash2, LucideEye, LucideCheck,
   ],
   template: `
     <div class="h-full overflow-y-auto" style="background: var(--color-bg)">
@@ -244,35 +244,174 @@ const PAGE_SIZE = 10;
           <!-- Cuerpo con scroll -->
           <div class="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4">
 
-            <input #fileInput type="file" multiple accept=".pdf,.docx,.txt,.xlsx,.csv"
-              class="hidden" (change)="onFileSelected($event)" />
+            @if (isPlantillas()) {
+              <!-- Plantillas: se cargan 2 archivos a la vez (plantilla Word + concentrado Excel) -->
+              <p style="color: var(--color-text-secondary); font-size: var(--font-size-sm)">
+                Selecciona la plantilla (Word) y su concentrado (Excel). Ambos se subirán con
+                <strong>el mismo nombre</strong> (solo cambia la extensión) para poder
+                identificarlos como pareja.
+              </p>
 
-            <!-- Dropzone -->
-            <div
-              class="document-dropzone"
-              [class.document-dropzone--dragging]="isDragging()"
-              tabindex="0"
-              role="button"
-              aria-label="Zona de carga de archivos"
-              (click)="fileInput.click()"
-              (keydown.enter)="fileInput.click()"
-              (dragover)="onDragOver($event)"
-              (dragleave)="onDragLeave()"
-              (drop)="onDrop($event)"
-            >
-              <div class="document-dropzone__icon" aria-hidden="true">
-                <svg lucideCloudUpload style="width: 40px; height: 40px"></svg>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <!-- Plantilla Word -->
+                <div>
+                  <p class="text-xs font-bold uppercase mb-2"
+                    style="color: var(--color-text-secondary); letter-spacing: .08em">
+                    Plantilla (Word)
+                  </p>
+                  <input #docxInput type="file" accept=".docx" class="hidden"
+                    (change)="onPlantillaDocxSelected($event)" />
+                  <div class="document-dropzone document-dropzone--compact"
+                    tabindex="0" role="button" aria-label="Seleccionar archivo Word de la plantilla"
+                    (click)="docxInput.click()" (keydown.enter)="docxInput.click()">
+                    @if (plantillaDocx(); as f) {
+                      <div class="document-dropzone__icon" aria-hidden="true">
+                        <svg lucideFileUp style="width: 22px; height: 22px"></svg>
+                      </div>
+                      <strong>{{ f.name }}</strong>
+                      <button type="button" class="text-xs font-medium" style="color: var(--color-danger)"
+                        (click)="removePlantillaDocx(); $event.stopPropagation()">
+                        Quitar
+                      </button>
+                    } @else {
+                      <div class="document-dropzone__icon" aria-hidden="true">
+                        <svg lucideCloudUpload style="width: 22px; height: 22px"></svg>
+                      </div>
+                      <strong>Selecciona el archivo</strong>
+                      <small style="letter-spacing: .06em; text-transform: uppercase">Formato: DOCX</small>
+                    }
+                  </div>
+                </div>
+
+                <!-- Concentrado Excel -->
+                <div>
+                  <p class="text-xs font-bold uppercase mb-2"
+                    style="color: var(--color-text-secondary); letter-spacing: .08em">
+                    Concentrado (Excel)
+                  </p>
+                  <input #excelInput type="file" accept=".csv,.xls,.xlsx" class="hidden"
+                    (change)="onPlantillaExcelSelected($event)" />
+                  <div class="document-dropzone document-dropzone--compact"
+                    tabindex="0" role="button" aria-label="Seleccionar archivo Excel del concentrado"
+                    (click)="excelInput.click()" (keydown.enter)="excelInput.click()">
+                    @if (plantillaExcel(); as f) {
+                      <div class="document-dropzone__icon" aria-hidden="true">
+                        <svg lucideFileUp style="width: 22px; height: 22px"></svg>
+                      </div>
+                      <strong>{{ f.name }}</strong>
+                      <button type="button" class="text-xs font-medium" style="color: var(--color-danger)"
+                        (click)="removePlantillaExcel(); $event.stopPropagation()">
+                        Quitar
+                      </button>
+                    } @else {
+                      <div class="document-dropzone__icon" aria-hidden="true">
+                        <svg lucideCloudUpload style="width: 22px; height: 22px"></svg>
+                      </div>
+                      <strong>Selecciona el archivo</strong>
+                      <small style="letter-spacing: .06em; text-transform: uppercase">Formato: CSV · XLS · XLSX</small>
+                    }
+                  </div>
+                </div>
               </div>
-              <strong>
-                {{ isDragging() ? 'Suelta los archivos aquí' : 'Arrastra archivos aquí' }}
-              </strong>
-              <span style="color: var(--color-text-secondary); font-size: var(--font-size-sm)">
-                O haz clic para seleccionar manualmente desde tu dispositivo
-              </span>
-              <small style="letter-spacing: .06em; text-transform: uppercase">
-                Formato aceptado: PDF · DOCX · TXT · XLSX · CSV
-              </small>
-            </div>
+
+              @if (plantillaDocx() || plantillaExcel()) {
+                <div class="flex flex-col gap-2.5 rounded-2xl px-4 py-3.5"
+                  style="background: var(--color-primary-subtle); border: 1px solid var(--color-primary-light)">
+
+                  @if (plantillaDocx() && plantillaExcel()) {
+                    <div class="flex flex-col gap-1.5">
+                      <span class="text-xs font-bold uppercase"
+                        style="color: var(--color-text-secondary); letter-spacing: .08em">
+                        Elige qué nombre conservar
+                      </span>
+                      <div class="flex gap-2">
+                        <button type="button"
+                          class="name-choice-chip flex-1 min-w-0"
+                          [class.name-choice-chip--active]="usingDocxName()"
+                          (click)="usePlantillaDocxName()">
+                          @if (usingDocxName()) {
+                            <svg lucideCheck class="w-3.5 h-3.5 shrink-0"></svg>
+                          }
+                          <span class="truncate">{{ baseNameOf(plantillaDocx()!.name) }}</span>
+                          <small class="shrink-0">.docx</small>
+                        </button>
+                        <button type="button"
+                          class="name-choice-chip flex-1 min-w-0"
+                          [class.name-choice-chip--active]="usingExcelName()"
+                          (click)="usePlantillaExcelName()">
+                          @if (usingExcelName()) {
+                            <svg lucideCheck class="w-3.5 h-3.5 shrink-0"></svg>
+                          }
+                          <span class="truncate">{{ baseNameOf(plantillaExcel()!.name) }}</span>
+                          <small class="shrink-0">{{ extOf(plantillaExcel()!.name) }}</small>
+                        </button>
+                      </div>
+                    </div>
+                  }
+
+                  <div class="flex flex-col gap-1.5">
+                    <label class="text-xs font-bold uppercase" for="plantillaNombre"
+                      style="color: var(--color-text-secondary); letter-spacing: .08em">
+                      O escribe un nombre personalizado
+                    </label>
+                    <input id="plantillaNombre" type="text" class="filter-input"
+                      style="width: 100%; background: var(--color-surface)"
+                      placeholder="Ej. Contrato de artista"
+                      [value]="plantillaNombre()"
+                      (input)="onPlantillaNombreInput($event)" />
+                  </div>
+
+                  @if (plantillaNombre().trim() && plantillaDocx() && plantillaExcel()) {
+                    <div class="flex items-start gap-1.5 pt-2"
+                      style="border-top: 1px dashed var(--color-primary-light)">
+                      <svg lucideFileUp class="w-3.5 h-3.5 shrink-0 mt-0.5" style="color: var(--color-primary)"></svg>
+                      <p style="color: var(--color-text-secondary); font-size: var(--font-size-xs)">
+                        Se subirán como
+                        <strong style="color: var(--color-text-primary)">{{ plantillaNombre().trim() }}{{ extOf(plantillaDocx()!.name) }}</strong>
+                        y
+                        <strong style="color: var(--color-text-primary)">{{ plantillaNombre().trim() }}{{ extOf(plantillaExcel()!.name) }}</strong>
+                      </p>
+                    </div>
+                  }
+                </div>
+              }
+
+              <button type="button" class="primary-button" [disabled]="!canUploadPlantilla()"
+                [style.opacity]="canUploadPlantilla() ? '1' : '0.5'"
+                (click)="uploadPlantillaPair()">
+                Subir plantilla y concentrado
+              </button>
+            } @else {
+              <input #fileInput type="file" multiple accept=".pdf,.docx,.txt,.xlsx,.csv"
+                class="hidden" (change)="onFileSelected($event)" />
+
+              <!-- Dropzone -->
+              <div
+                class="document-dropzone"
+                [class.document-dropzone--dragging]="isDragging()"
+                tabindex="0"
+                role="button"
+                aria-label="Zona de carga de archivos"
+                (click)="fileInput.click()"
+                (keydown.enter)="fileInput.click()"
+                (dragover)="onDragOver($event)"
+                (dragleave)="onDragLeave()"
+                (drop)="onDrop($event)"
+              >
+                <div class="document-dropzone__icon" aria-hidden="true">
+                  <svg lucideCloudUpload style="width: 40px; height: 40px"></svg>
+                </div>
+                <strong>
+                  {{ isDragging() ? 'Suelta los archivos aquí' : 'Arrastra archivos aquí' }}
+                </strong>
+                <span style="color: var(--color-text-secondary); font-size: var(--font-size-sm)">
+                  O haz clic para seleccionar manualmente desde tu dispositivo
+                </span>
+                <small style="letter-spacing: .06em; text-transform: uppercase">
+                  Formato aceptado: PDF · DOCX · TXT · XLSX · CSV
+                </small>
+              </div>
+            }
 
             <!-- Pipeline -->
             @if (uploadTasks().length > 0) {
@@ -336,6 +475,17 @@ const PAGE_SIZE = 10;
                 Esta acción no se puede deshacer.
               </p>
             </div>
+
+            @if (confirmDocPair(); as pair) {
+              <div class="flex items-start gap-2 rounded-xl px-3 py-2 text-left"
+                style="background: var(--color-warning-light); border: 1px solid rgba(217,119,6,.3)">
+                <svg lucideTriangleAlert class="w-4 h-4 shrink-0 mt-0.5" style="color: #92400e"></svg>
+                <p class="text-xs" style="color: #92400e">
+                  Este archivo forma parte de una plantilla. También se eliminará su pareja:
+                  <strong>{{ pair.name }}</strong>
+                </p>
+              </div>
+            }
           </div>
 
           <div class="flex gap-2 px-6 pb-6">
@@ -385,6 +535,34 @@ export class KnowledgeBaseComponent implements OnInit {
 
   readonly currentPage = signal(1);
 
+  readonly plantillaDocx = signal<File | null>(null);
+  readonly plantillaExcel = signal<File | null>(null);
+  readonly plantillaNombre = signal('');
+
+  readonly isPlantillas = computed(() => this.config?.expediente === 'PLANTILLAS');
+
+  readonly canUploadPlantilla = computed(() =>
+    !!this.plantillaDocx() && !!this.plantillaExcel() && this.plantillaNombre().trim().length > 0
+  );
+
+  readonly usingDocxName = computed(() => {
+    const f = this.plantillaDocx();
+    if (!f) return false;
+    return this.plantillaNombre().trim().toLowerCase() === this.baseNameOf(f.name).trim().toLowerCase();
+  });
+
+  readonly usingExcelName = computed(() => {
+    const f = this.plantillaExcel();
+    if (!f) return false;
+    return this.plantillaNombre().trim().toLowerCase() === this.baseNameOf(f.name).trim().toLowerCase();
+  });
+
+  readonly confirmDocPair = computed(() => {
+    const doc = this.confirmDoc();
+    if (!doc || !this.isPlantillas()) return null;
+    return this.plantillaPairOf(doc);
+  });
+
   readonly filteredDocuments = computed(() => {
     const q = this.searchQuery().toLowerCase().trim();
     const st = this.statusFilter();
@@ -433,7 +611,13 @@ export class KnowledgeBaseComponent implements OnInit {
 
   // ── Modal ─────────────────────────────────────────────────────────────────
   openUploadModal(): void { this.uploadModalOpen.set(true); }
-  closeUploadModal(): void { this.uploadModalOpen.set(false); }
+
+  closeUploadModal(): void {
+    this.uploadModalOpen.set(false);
+    this.plantillaDocx.set(null);
+    this.plantillaExcel.set(null);
+    this.plantillaNombre.set('');
+  }
 
   hasActiveTasks(): boolean {
     return this.uploadTasks().some(t => t.step !== 'done' && t.step !== 'error');
@@ -514,20 +698,40 @@ export class KnowledgeBaseComponent implements OnInit {
     const doc = this.confirmDoc();
     if (!doc) return;
 
+    const pair = this.confirmDocPair();
+    const targets = pair ? [doc, pair] : [doc];
+
     this.deletingId.set(doc.id);
-    this.svc.deleteDocument(doc.id, this.config.collection).subscribe({
-      next: () => {
-        this.apiDocuments.update(docs => docs.filter(d => d.id !== doc.id));
+
+    let pending = targets.length;
+    const finish = () => {
+      pending -= 1;
+      if (pending === 0) {
         this.deletingId.set(null);
         this.confirmDoc.set(null);
-        this.registrarBitacora('ELIMINAR', doc.id, doc.name, true);
-      },
-      error: () => {
-        this.deletingId.set(null);
-        this.confirmDoc.set(null);
-        this.registrarBitacora('ELIMINAR', doc.id, doc.name, false);
-      },
-    });
+      }
+    };
+
+    for (const target of targets) {
+      this.svc.deleteDocument(target.id, this.config.collection).subscribe({
+        next: () => {
+          this.apiDocuments.update(docs => docs.filter(d => d.id !== target.id));
+          this.registrarBitacora('ELIMINAR', target.id, target.name, true);
+          finish();
+        },
+        error: () => {
+          this.registrarBitacora('ELIMINAR', target.id, target.name, false);
+          finish();
+        },
+      });
+    }
+  }
+
+  private plantillaPairOf(doc: KnowledgeDocument): KnowledgeDocument | null {
+    const base = this.baseNameOf(doc.name).trim().toLowerCase();
+    return this.apiDocuments().find(
+      (d) => d.id !== doc.id && this.baseNameOf(d.name).trim().toLowerCase() === base,
+    ) ?? null;
   }
 
   // ── Drag & Drop ───────────────────────────────────────────────────────────
@@ -547,6 +751,69 @@ export class KnowledgeBaseComponent implements OnInit {
   onFileSelected(e: Event): void {
     this.processFiles(Array.from((e.target as HTMLInputElement).files ?? []));
     (e.target as HTMLInputElement).value = '';
+  }
+
+  // ── Plantillas: carga de par plantilla (Word) + concentrado (Excel) ────────
+  onPlantillaDocxSelected(e: Event): void {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    this.plantillaDocx.set(file);
+    if (file && !this.plantillaNombre().trim()) {
+      this.plantillaNombre.set(this.baseNameOf(file.name));
+    }
+    input.value = '';
+  }
+
+  onPlantillaExcelSelected(e: Event): void {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    this.plantillaExcel.set(file);
+    if (file && !this.plantillaNombre().trim()) {
+      this.plantillaNombre.set(this.baseNameOf(file.name));
+    }
+    input.value = '';
+  }
+
+  removePlantillaDocx(): void { this.plantillaDocx.set(null); }
+  removePlantillaExcel(): void { this.plantillaExcel.set(null); }
+
+  onPlantillaNombreInput(e: Event): void {
+    this.plantillaNombre.set((e.target as HTMLInputElement).value);
+  }
+
+  usePlantillaDocxName(): void {
+    const file = this.plantillaDocx();
+    if (file) this.plantillaNombre.set(this.baseNameOf(file.name));
+  }
+
+  usePlantillaExcelName(): void {
+    const file = this.plantillaExcel();
+    if (file) this.plantillaNombre.set(this.baseNameOf(file.name));
+  }
+
+  baseNameOf(fileName: string): string {
+    const idx = fileName.lastIndexOf('.');
+    return idx > 0 ? fileName.slice(0, idx) : fileName;
+  }
+
+  extOf(fileName: string): string {
+    const idx = fileName.lastIndexOf('.');
+    return idx > 0 ? fileName.slice(idx) : '';
+  }
+
+  uploadPlantillaPair(): void {
+    if (!this.canUploadPlantilla()) return;
+    const nombre = this.plantillaNombre().trim();
+    const docx = this.renamedFile(this.plantillaDocx()!, nombre);
+    const excel = this.renamedFile(this.plantillaExcel()!, nombre);
+    this.processFiles([docx, excel]);
+    this.plantillaDocx.set(null);
+    this.plantillaExcel.set(null);
+    this.plantillaNombre.set('');
+  }
+
+  private renamedFile(file: File, nombre: string): File {
+    return new File([file], `${nombre}${this.extOf(file.name)}`, { type: file.type });
   }
 
   // ── Pipeline ──────────────────────────────────────────────────────────────

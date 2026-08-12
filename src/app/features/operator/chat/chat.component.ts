@@ -9,14 +9,14 @@ import {
   LucideSend, LucidePaperclip, LucideX, LucideBot, LucideUser,
   LucideFileText, LucideSparkles, LucideRefreshCw, LucideCopy, LucideCheck,
   LucideCircleQuestionMark, LucideMessageCircleQuestion, LucideSettings, LucideHistory,
-  LucideTriangleAlert, LucideChevronLeft, LucideChevronRight,
+  LucideTriangleAlert, LucideChevronLeft, LucideChevronRight, LucideDownload,
 } from '@lucide/angular';
 import { Message, AttachedFile, TableData, ChartData } from '../../../core/models/message.model';
 import { PreguntaFrecuente } from '../../../core/models/faq.model';
 import { InstruccionSistema } from '../../../core/models/instruccion-sistema.model';
 import { Operador } from '../../../core/models/operador.model';
 import { Conversacion } from '../../../core/models/conversacion.model';
-import { ChatService } from '../../../core/services/chat.service';
+import { ChatService, Documento } from '../../../core/services/chat.service';
 import { FaqService } from '../../../core/services/faq.service';
 import { InstruccionesSistemaService } from '../../../core/services/instrucciones-sistema.service';
 import { OperadoresService } from '../../../core/services/operadores.service';
@@ -31,7 +31,7 @@ const PAGE_SIZE_HISTORIAL = 8;
     LucideSend, LucidePaperclip, LucideX, LucideBot, LucideUser,
     LucideFileText, LucideSparkles, LucideRefreshCw, LucideCopy, LucideCheck,
     LucideCircleQuestionMark, LucideMessageCircleQuestion, LucideSettings, LucideHistory,
-    LucideTriangleAlert, LucideChevronLeft, LucideChevronRight,
+    LucideTriangleAlert, LucideChevronLeft, LucideChevronRight, LucideDownload,
   ],
   template: `
     <div class="relative flex flex-col h-full" style="background: var(--color-bg)">
@@ -111,6 +111,20 @@ const PAGE_SIZE_HISTORIAL = 8;
                 style="margin-bottom: .85rem"
               />
             }
+
+            <label style="display: block; font-size: var(--font-size-xs); font-weight: 700; color: var(--color-text-secondary); margin-bottom: .3rem">
+              Modelo
+            </label>
+            <select
+              [ngModel]="modelo()"
+              (ngModelChange)="modelo.set($event)"
+              class="input-base"
+              style="margin-bottom: .85rem"
+            >
+              @for (m of modelosDisponibles; track m) {
+                <option [ngValue]="m">{{ m }}</option>
+              }
+            </select>
 
             <label style="display: block; font-size: var(--font-size-xs); font-weight: 700; color: var(--color-text-secondary); margin-bottom: .3rem">
               Contexto del agente
@@ -343,6 +357,23 @@ const PAGE_SIZE_HISTORIAL = 8;
                       </div>
                     }
 
+                    <!-- Documento generado -->
+                    @if (msg.documento) {
+                      <div class="px-4 pb-4">
+                        <button (click)="downloadDocument(msg.documento)" type="button"
+                          class="flex items-center gap-3 w-full text-left bg-accent-50 border border-accent-200 rounded-xl px-3 py-2.5 hover:bg-accent-100 transition-colors">
+                          <div class="w-8 h-8 rounded-lg bg-accent-100 flex items-center justify-center shrink-0">
+                            <svg lucideFileText class="w-4 h-4 text-accent-600"></svg>
+                          </div>
+                          <div class="flex-1 min-w-0">
+                            <p class="text-xs font-semibold text-slate-800 truncate">{{ msg.documento.nombre }}</p>
+                            <p class="text-xs text-slate-400">Toca para descargar</p>
+                          </div>
+                          <svg lucideDownload class="w-4 h-4 text-accent-600 shrink-0"></svg>
+                        </button>
+                      </div>
+                    }
+
                     <!-- Footer actions -->
                     <div class="flex items-center gap-2 px-4 py-2.5 border-t border-slate-100 bg-slate-50/50">
                       <button (click)="copyMessage(msg)"
@@ -459,6 +490,8 @@ export class ChatComponent implements AfterViewChecked, OnInit {
 
   readonly conversationId = this.chatService.conversationId;
   readonly operador = this.chatService.operador;
+  readonly modelo = this.chatService.modelo;
+  readonly modelosDisponibles = this.chatService.modelosDisponibles;
   readonly instrucciones = this.chatService.instrucciones;
   readonly showSettingsPanel = signal(false);
   readonly copiedFolio = signal(false);
@@ -572,7 +605,7 @@ export class ChatComponent implements AfterViewChecked, OnInit {
       next: (res) => {
         this.messages.update(msgs =>
           msgs.map(m => m.id === loadingId
-            ? { ...m, content: res.respuesta, contentType: 'markdown', isLoading: false, citas: res.citas }
+            ? { ...m, content: res.respuesta, contentType: 'markdown', isLoading: false, citas: res.citas, documento: res.documento }
             : m)
         );
         this.shouldScroll = true;
@@ -722,6 +755,22 @@ export class ChatComponent implements AfterViewChecked, OnInit {
       this.copiedFolio.set(true);
       setTimeout(() => this.copiedFolio.set(false), 2000);
     });
+  }
+
+  downloadDocument(documento?: Documento): void {
+    if (!documento) return;
+    const byteChars = atob(documento.base64);
+    const byteNumbers = new Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) {
+      byteNumbers[i] = byteChars.charCodeAt(i);
+    }
+    const blob = new Blob([new Uint8Array(byteNumbers)], { type: documento.mime_type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = documento.nombre;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   formatSize(bytes: number): string {

@@ -29,14 +29,28 @@ export interface Cita {
   [key: string]: unknown;
 }
 
+export interface Documento {
+  nombre: string;
+  mime_type: string;
+  base64: string;
+}
+
 export interface ChatResponse {
   respuesta: string;
   conversation_id: string;
   citas?: Cita[];
+  documento?: Documento;
 }
 
-const MODELO = 'gemini-2.5-flash';
 const DEFAULT_OPERADOR = 'Web 2';
+const DEFAULT_MODELO = 'gemini-2.5-flash';
+
+export const MODELOS_DISPONIBLES = [
+  'gemini-2.5-flash',
+  'gemini-3.5-flash',
+  'gemini-3.5-pro',
+  'gemini-3.5-pro-lite',
+] as const;
 
 @Injectable({ providedIn: 'root' })
 export class ChatService {
@@ -49,6 +63,8 @@ export class ChatService {
 
   readonly operador = signal(DEFAULT_OPERADOR);
   readonly instrucciones = signal('');
+  readonly modelo = signal<string>(DEFAULT_MODELO);
+  readonly modelosDisponibles = MODELOS_DISPONIBLES;
 
   send(
     texto: string,
@@ -63,7 +79,7 @@ export class ChatService {
       operador: this.operador(),
       expediente: null,
       idInstruccionesSistema,
-      modelo: MODELO,
+      modelo: this.modelo(),
     };
 
     return this.http

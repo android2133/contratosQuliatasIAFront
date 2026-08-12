@@ -749,6 +749,55 @@
     justify-content: center;
     width:           72px;
   }
+  .document-dropzone--compact {
+    gap:        .4rem;
+    min-height: 150px;
+    padding:    1.1rem;
+  }
+  .document-dropzone--compact strong {
+    font-size:  var(--font-size-sm);
+    word-break: break-word;
+  }
+  .document-dropzone--compact .document-dropzone__icon {
+    height: 44px;
+    width:  44px;
+  }
+  .name-choice-chip {
+    align-items:    center;
+    background:     var(--color-surface);
+    border:         1.5px solid var(--color-border);
+    border-radius:  var(--radius-full);
+    color:          var(--color-text-secondary);
+    cursor:         pointer;
+    display:        inline-flex;
+    font-size:      var(--font-size-xs);
+    font-weight:    700;
+    gap:            .35rem;
+    justify-content: center;
+    padding:        .5rem .75rem;
+    transition:
+      background     var(--transition-fast),
+      border-color   var(--transition-fast),
+      color          var(--transition-fast);
+  }
+  .name-choice-chip span {
+    overflow:      hidden;
+    text-overflow: ellipsis;
+    white-space:   nowrap;
+  }
+  .name-choice-chip small {
+    color:          inherit;
+    font-weight:    600;
+    opacity:        .65;
+    text-transform: lowercase;
+  }
+  .name-choice-chip:hover { border-color: var(--color-primary); }
+  .name-choice-chip--active {
+    background:   var(--color-primary);
+    border-color: var(--color-primary);
+    color:        #fff;
+  }
+  .name-choice-chip--active small { opacity: .85; }
 
   /* ══════════════════════════════════════════════
      Página de bandeja / inbox (contenedor raíz)
