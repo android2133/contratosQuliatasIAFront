@@ -122,6 +122,13 @@ export const routes: Routes = [
                 (m) => m.BitacoraComponent
               ),
           },
+          {
+            path: 'conversaciones',
+            loadComponent: () =>
+              import('./features/admin/conversaciones/conversaciones.component').then(
+                (m) => m.ConversacionesComponent
+              ),
+          },
           { path: '', redirectTo: 'knowledge-base', pathMatch: 'full' },
         ],
       },

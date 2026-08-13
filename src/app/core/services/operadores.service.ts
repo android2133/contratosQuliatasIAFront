@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Operador } from '../models/operador.model';
-import { Conversacion } from '../models/conversacion.model';
+import { Conversacion, ConversacionDetalle } from '../models/conversacion.model';
 
 interface OperadoresResponse {
   operadores: Operador[];
@@ -30,5 +30,11 @@ export class OperadoresService {
         `${environment.conversationBaseUrl}/operadores/${encodeURIComponent(operador)}/conversaciones`,
       )
       .pipe(map((res) => res.conversaciones));
+  }
+
+  obtenerConversacion(conversationId: string): Observable<ConversacionDetalle> {
+    return this.http.get<ConversacionDetalle>(
+      `${environment.conversationBaseUrl}/conversaciones/${encodeURIComponent(conversationId)}`,
+    );
   }
 }

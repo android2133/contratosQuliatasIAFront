@@ -7,7 +7,7 @@ import {
   LucideMenu, LucideX,
   LucideBookOpen, LucideScale, LucideLayoutTemplate, LucideCircleQuestionMark,
   LucideActivity, LucideDatabaseZap, LucideChartColumn, LucideBotMessageSquare,
-  LucideShieldCheck, LucideHeadset, LucideHistory,
+  LucideShieldCheck, LucideHeadset, LucideHistory, LucideMessagesSquare,
 } from '@lucide/angular';
 
 const PAGE_LABELS: Record<string, string> = {
@@ -20,6 +20,7 @@ const PAGE_LABELS: Record<string, string> = {
   '/admin/administracion-vectorial': 'Administración Vectorial',
   '/admin/metricas': 'Métricas',
   '/admin/bitacora': 'Bitácora',
+  '/admin/conversaciones': 'Conversaciones',
   '/operator/chat': 'Chat Agente',
   '/operator/faq': 'Preguntas Frecuentes',
 };
@@ -39,7 +40,7 @@ const RUTA_INICIAL: Record<Rol, string> = {
     LucideMenu, LucideX,
     LucideBookOpen, LucideScale, LucideLayoutTemplate, LucideCircleQuestionMark,
     LucideActivity, LucideDatabaseZap, LucideChartColumn, LucideBotMessageSquare,
-    LucideShieldCheck, LucideHeadset, LucideHistory,
+    LucideShieldCheck, LucideHeadset, LucideHistory, LucideMessagesSquare,
   ],
   template: `
     <div class="flex h-screen overflow-hidden" style="background: var(--color-bg)">
@@ -103,6 +104,10 @@ const RUTA_INICIAL: Record<Rol, string> = {
             <a routerLink="/admin/bitacora" routerLinkActive="nav-item-active" class="nav-item">
               <svg lucideHistory class="w-4 h-4 shrink-0"></svg>
               <span>Bitácora</span>
+            </a>
+            <a routerLink="/admin/conversaciones" routerLinkActive="nav-item-active" class="nav-item">
+              <svg lucideMessagesSquare class="w-4 h-4 shrink-0"></svg>
+              <span>Conversaciones</span>
             </a>
           } @else {
             <p class="px-3 mb-2" style="font-size: var(--font-size-xs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--color-text-muted)">

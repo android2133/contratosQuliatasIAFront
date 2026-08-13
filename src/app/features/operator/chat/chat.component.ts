@@ -15,7 +15,7 @@ import { Message, AttachedFile, TableData, ChartData } from '../../../core/model
 import { PreguntaFrecuente } from '../../../core/models/faq.model';
 import { InstruccionSistema } from '../../../core/models/instruccion-sistema.model';
 import { Operador } from '../../../core/models/operador.model';
-import { Conversacion } from '../../../core/models/conversacion.model';
+import { Conversacion, ConversacionDetalle } from '../../../core/models/conversacion.model';
 import { ChatService, Documento } from '../../../core/services/chat.service';
 import { FaqService } from '../../../core/services/faq.service';
 import { InstruccionesSistemaService } from '../../../core/services/instrucciones-sistema.service';
@@ -241,6 +241,19 @@ const PAGE_SIZE_HISTORIAL = 8;
 
       <!-- Messages -->
       <div #messagesContainer class="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+        @if (retomarLoading()) {
+          <div class="flex flex-col gap-4">
+            @for (i of [0, 1, 2]; track i) {
+              <div class="flex gap-3">
+                <div class="w-8 h-8 rounded-full bg-slate-200 shrink-0"></div>
+                <div class="flex-1 max-w-2xl bg-white border border-slate-100 rounded-2xl rounded-tl-sm p-4 shadow-sm space-y-2">
+                  <div class="skeleton h-3 w-3/4"></div>
+                  <div class="skeleton h-3 w-1/2"></div>
+                </div>
+              </div>
+            }
+          </div>
+        }
         @for (msg of messages(); track msg.id) {
 
           @if (msg.role === 'user') {
@@ -505,6 +518,7 @@ export class ChatComponent implements AfterViewChecked, OnInit {
   readonly historialLoading = signal(false);
   readonly historialError = signal(false);
   readonly historialConversaciones = signal<Conversacion[]>([]);
+  readonly retomarLoading = signal(false);
 
   readonly currentPageHistorial = signal(1);
   readonly totalPagesHistorial = computed(() =>
@@ -531,8 +545,6 @@ export class ChatComponent implements AfterViewChecked, OnInit {
       next: (items) => this.operadoresDisponibles.set(items),
       error: () => this.operadoresDisponibles.set([]),
     });
-    // La primera instrucción del sistema del listado se toma como default
-    // antes de disparar el "Hola" inicial, para que ya viaje en esa petición.
     this.instruccionesSistemaService.listar().subscribe({
       next: (items) => {
         this.instruccionesDisponibles.set(items);
@@ -626,7 +638,14 @@ export class ChatComponent implements AfterViewChecked, OnInit {
 
   private startChat(): void {
     this.chatService.resetConversacion();
-    this.callChatApi('Hola');
+    this.messages.set([{
+      id: crypto.randomUUID(),
+      role: 'assistant',
+      content: '¡Hola! Soy tu agente de contratos. Puedo ayudarte a generar, analizar o resolver dudas sobre contratos y anexos. ¿En qué puedo ayudarte hoy?',
+      contentType: 'markdown',
+      timestamp: new Date(),
+    }]);
+    this.shouldScroll = true;
   }
 
   onSeleccionarInstruccion(idInstruccion: number | null): void {
@@ -671,18 +690,49 @@ export class ChatComponent implements AfterViewChecked, OnInit {
   }
 
   retomarConversacion(conv: Conversacion): void {
-    this.chatService.resumirConversacion(conv.conversationId);
-    this.messages.set([{
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: `**Continuando conversación** del ${this.formatDateTime(conv.inicio)}\n\n${conv.tituloConversacion}`,
-      contentType: 'markdown',
-      timestamp: new Date(),
-    }]);
     this.showHistorialPanel.set(false);
+    this.messages.set([]);
+    this.retomarLoading.set(true);
     this.shouldScroll = true;
-    this.callChatApi('Hola');
-    setTimeout(() => this.messageInput?.nativeElement.focus(), 0);
+
+    this.operadoresService.obtenerConversacion(conv.conversationId).subscribe({
+      next: (detalle) => {
+        this.chatService.resumirConversacion(detalle.conversationId);
+        this.messages.set(this.mapHistorialAMensajes(detalle));
+        this.retomarLoading.set(false);
+        this.shouldScroll = true;
+        setTimeout(() => this.messageInput?.nativeElement.focus(), 0);
+      },
+      error: () => {
+        // Fallback: si el historial detallado no está disponible, al menos
+        // dejamos la conversación lista para continuar desde el conversationId.
+        this.chatService.resumirConversacion(conv.conversationId);
+        this.messages.set([{
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: `**Continuando conversación** del ${this.formatDateTime(conv.inicio)}\n\n${conv.tituloConversacion}\n\n_No fue posible recuperar el historial detallado._`,
+          contentType: 'markdown',
+          timestamp: new Date(),
+        }]);
+        this.retomarLoading.set(false);
+        this.shouldScroll = true;
+        setTimeout(() => this.messageInput?.nativeElement.focus(), 0);
+      },
+    });
+  }
+
+  private mapHistorialAMensajes(detalle: ConversacionDetalle): Message[] {
+    return detalle.historial.map((item) => {
+      const role = item.role === 'model' ? 'assistant' : 'user';
+      const texto = item.parts.map((p) => p.text).join('\n');
+      return {
+        id: crypto.randomUUID(),
+        role,
+        content: texto,
+        contentType: role === 'assistant' ? 'markdown' : 'text',
+        timestamp: new Date(),
+      };
+    });
   }
 
   prevPageHistorial(): void { this.currentPageHistorial.update((p) => Math.max(1, p - 1)); }
