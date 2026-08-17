@@ -436,7 +436,18 @@ const PAGE_SIZE_HISTORIAL = 8;
       }
 
       <!-- Input -->
-      <div class="relative px-4 pb-4 pt-2 shrink-0" style="background: var(--color-surface); border-top: 1px solid var(--color-border)">
+      <div class="relative px-4 pb-4 pt-2 shrink-0" style="background: var(--color-surface); border-top: 1px solid var(--color-border)"
+        (dragenter)="onDragEnter($event)" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
+
+        @if (isDraggingFile()) {
+          <div class="absolute inset-0 z-30 flex items-center justify-center pointer-events-none" style="padding: 0 1rem 1rem">
+            <div class="flex items-center gap-2 px-4 py-3 w-full h-full rounded-2xl justify-center"
+              style="background: var(--color-primary-subtle, rgba(148,27,128,.08)); border: 2px dashed var(--color-primary)">
+              <svg lucidePaperclip class="w-4 h-4" style="color: var(--color-primary)"></svg>
+              <span class="text-sm font-semibold" style="color: var(--color-primary)">Suelta los archivos aquí para adjuntarlos</span>
+            </div>
+          </div>
+        }
 
         @if (showFaqPanel()) {
           <div class="faq-quickpanel" role="listbox">
@@ -541,6 +552,8 @@ export class ChatComponent implements AfterViewChecked, OnInit {
 
   readonly inputText = signal('');
   private shouldScroll = false;
+  readonly isDraggingFile = signal(false);
+  private dragCounter = 0;
 
   readonly canSend = computed(() => this.inputText().trim().length > 0);
 
@@ -804,6 +817,40 @@ export class ChatComponent implements AfterViewChecked, OnInit {
 
   onFileAttached(e: Event): void {
     const files = Array.from((e.target as HTMLInputElement).files ?? []);
+    this.handleFiles(files);
+    (e.target as HTMLInputElement).value = '';
+  }
+
+  onDragEnter(e: DragEvent): void {
+    e.preventDefault();
+    if (!this.hasFiles(e)) return;
+    this.dragCounter++;
+    this.isDraggingFile.set(true);
+  }
+
+  onDragOver(e: DragEvent): void {
+    if (this.hasFiles(e)) e.preventDefault();
+  }
+
+  onDragLeave(e: DragEvent): void {
+    e.preventDefault();
+    this.dragCounter = Math.max(0, this.dragCounter - 1);
+    if (this.dragCounter === 0) this.isDraggingFile.set(false);
+  }
+
+  onDrop(e: DragEvent): void {
+    e.preventDefault();
+    this.dragCounter = 0;
+    this.isDraggingFile.set(false);
+    const files = Array.from(e.dataTransfer?.files ?? []);
+    this.handleFiles(files);
+  }
+
+  private hasFiles(e: DragEvent): boolean {
+    return Array.from(e.dataTransfer?.types ?? []).includes('Files');
+  }
+
+  private handleFiles(files: File[]): void {
     files.forEach(f => {
       const reader = new FileReader();
       reader.onload = () => {
@@ -815,7 +862,6 @@ export class ChatComponent implements AfterViewChecked, OnInit {
       };
       reader.readAsDataURL(f);
     });
-    (e.target as HTMLInputElement).value = '';
   }
 
   removeFile(id: string): void {

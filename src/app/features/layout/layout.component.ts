@@ -141,11 +141,16 @@ const PAGE_LABELS: Record<string, string> = {
             </button>
 
             <!-- Logo -->
-            <img
-              class="topbar__logo hidden sm:block"
-              src="/logo-qu.png"
-              alt="Contratos IA"
-            >
+            <div class="hidden sm:flex flex-col items-start">
+              <img
+                class="topbar__logo"
+                src="/logo-qu.png"
+                alt="Contratos IA"
+              >
+              <span style="font-size: var(--font-size-xs); font-weight: 600; color: var(--color-text-muted); line-height: 1">
+                Cumplimiento normativo
+              </span>
+            </div>
 
             <!-- Breadcrumb -->
             <nav class="topbar__breadcrumb" aria-label="Ruta de navegación">
