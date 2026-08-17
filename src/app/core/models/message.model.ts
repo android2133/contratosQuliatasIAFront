@@ -23,6 +23,12 @@ export interface ChartData {
   color: string;
 }
 
+export interface RetryPayload {
+  userInput: string;
+  contenidos: { mimetype: string; uri: string; nombreArchivo: string }[];
+  instruccionId: number | null;
+}
+
 export interface Message {
   id: string;
   role: MessageRole;
@@ -34,6 +40,8 @@ export interface Message {
   chartData?: ChartData;
   imageUrl?: string;
   isLoading?: boolean;
+  isError?: boolean;
+  retryPayload?: RetryPayload;
   citas?: Cita[];
   documento?: Documento;
 }

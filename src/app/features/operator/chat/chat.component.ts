@@ -11,7 +11,7 @@ import {
   LucideCircleQuestionMark, LucideMessageCircleQuestion, LucideSettings, LucideHistory,
   LucideTriangleAlert, LucideChevronLeft, LucideChevronRight, LucideDownload,
 } from '@lucide/angular';
-import { Message, AttachedFile, TableData, ChartData } from '../../../core/models/message.model';
+import { Message, AttachedFile, TableData, ChartData, RetryPayload } from '../../../core/models/message.model';
 import { PreguntaFrecuente } from '../../../core/models/faq.model';
 import { InstruccionSistema } from '../../../core/models/instruccion-sistema.model';
 import { Operador } from '../../../core/models/operador.model';
@@ -399,6 +399,14 @@ const PAGE_SIZE_HISTORIAL = 8;
                           Copiar
                         }
                       </button>
+                      @if (msg.isError) {
+                        <span class="text-slate-200">·</span>
+                        <button (click)="retryMessage(msg)" type="button"
+                          class="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-700 transition-colors px-2 py-1 rounded-md hover:bg-slate-100">
+                          <svg lucideRefreshCw class="w-3.5 h-3.5"></svg>
+                          Reintentar
+                        </button>
+                      }
                       <span class="text-slate-200">·</span>
                       <span class="text-xs text-slate-400">{{ formatTime(msg.timestamp) }}</span>
                     </div>
@@ -613,11 +621,14 @@ export class ChatComponent implements AfterViewChecked, OnInit {
     }]);
     this.shouldScroll = true;
 
-    this.chatService.send(userInput, contenidos, this.selectedInstruccionId()).subscribe({
+    const instruccionId = this.selectedInstruccionId();
+    const retryPayload: RetryPayload = { userInput, contenidos, instruccionId };
+
+    this.chatService.send(userInput, contenidos, instruccionId).subscribe({
       next: (res) => {
         this.messages.update(msgs =>
           msgs.map(m => m.id === loadingId
-            ? { ...m, content: res.respuesta, contentType: 'markdown', isLoading: false, citas: res.citas, documento: res.documento }
+            ? { ...m, content: res.respuesta, contentType: 'markdown', isLoading: false, isError: false, citas: res.citas, documento: res.documento, retryPayload: undefined }
             : m)
         );
         this.shouldScroll = true;
@@ -627,7 +638,41 @@ export class ChatComponent implements AfterViewChecked, OnInit {
         const errMsg = err?.message ?? 'Error desconocido al conectar con el asistente.';
         this.messages.update(msgs =>
           msgs.map(m => m.id === loadingId
-            ? { ...m, content: `**Error:** ${errMsg}`, contentType: 'markdown', isLoading: false }
+            ? { ...m, content: `**Error:** ${errMsg}`, contentType: 'markdown', isLoading: false, isError: true, retryPayload }
+            : m)
+        );
+        this.shouldScroll = true;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  retryMessage(msg: Message): void {
+    const payload = msg.retryPayload;
+    if (!payload) return;
+
+    this.messages.update(msgs =>
+      msgs.map(m => m.id === msg.id
+        ? { ...m, content: '', contentType: 'text', isLoading: true, isError: false }
+        : m)
+    );
+    this.shouldScroll = true;
+
+    this.chatService.send(payload.userInput, payload.contenidos, payload.instruccionId).subscribe({
+      next: (res) => {
+        this.messages.update(msgs =>
+          msgs.map(m => m.id === msg.id
+            ? { ...m, content: res.respuesta, contentType: 'markdown', isLoading: false, isError: false, citas: res.citas, documento: res.documento, retryPayload: undefined }
+            : m)
+        );
+        this.shouldScroll = true;
+        this.cdr.detectChanges();
+      },
+      error: (err: Error) => {
+        const errMsg = err?.message ?? 'Error desconocido al conectar con el asistente.';
+        this.messages.update(msgs =>
+          msgs.map(m => m.id === msg.id
+            ? { ...m, content: `**Error:** ${errMsg}`, contentType: 'markdown', isLoading: false, isError: true, retryPayload: payload }
             : m)
         );
         this.shouldScroll = true;
@@ -638,14 +683,9 @@ export class ChatComponent implements AfterViewChecked, OnInit {
 
   private startChat(): void {
     this.chatService.resetConversacion();
-    this.messages.set([{
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: '¡Hola! Soy tu agente de contratos. Puedo ayudarte a generar, analizar o resolver dudas sobre contratos y anexos. ¿En qué puedo ayudarte hoy?',
-      contentType: 'markdown',
-      timestamp: new Date(),
-    }]);
+    this.messages.set([]);
     this.shouldScroll = true;
+    this.callChatApi('Hola');
   }
 
   onSeleccionarInstruccion(idInstruccion: number | null): void {

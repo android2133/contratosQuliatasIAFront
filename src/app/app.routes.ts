@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { roleGuard } from './core/auth/role.guard';
 
 export const routes: Routes = [
   {
@@ -23,6 +24,8 @@ export const routes: Routes = [
     children: [
       {
         path: 'admin',
+        canActivate: [roleGuard],
+        data: { rol: 'admin' },
         children: [
           {
             path: 'knowledge-base',
@@ -134,6 +137,8 @@ export const routes: Routes = [
       },
       {
         path: 'operator',
+        canActivate: [roleGuard],
+        data: { rol: 'operador' },
         children: [
           {
             path: 'chat',

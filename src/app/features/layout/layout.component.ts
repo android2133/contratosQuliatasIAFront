@@ -9,6 +9,7 @@ import {
   LucideActivity, LucideDatabaseZap, LucideChartColumn, LucideBotMessageSquare,
   LucideShieldCheck, LucideHeadset, LucideHistory, LucideMessagesSquare,
 } from '@lucide/angular';
+import { Rol, ROL_STORAGE_KEY, RUTA_INICIAL, obtenerRolActivo } from '../../core/auth/rol';
 
 const PAGE_LABELS: Record<string, string> = {
   '/admin/knowledge-base': 'Base de Conocimientos',
@@ -23,13 +24,6 @@ const PAGE_LABELS: Record<string, string> = {
   '/admin/conversaciones': 'Conversaciones',
   '/operator/chat': 'Chat Agente',
   '/operator/faq': 'Preguntas Frecuentes',
-};
-
-type Rol = 'admin' | 'operador';
-const ROL_STORAGE_KEY = 'app-rol';
-const RUTA_INICIAL: Record<Rol, string> = {
-  admin: '/admin/knowledge-base',
-  operador: '/operator/chat',
 };
 
 @Component({
@@ -263,8 +257,6 @@ export class LayoutComponent {
   }
 
   private rolInicial(): Rol {
-    const guardado = localStorage.getItem(ROL_STORAGE_KEY);
-    if (guardado === 'admin' || guardado === 'operador') return guardado;
-    return this.router.url.startsWith('/operator') ? 'operador' : 'admin';
+    return obtenerRolActivo(this.router.url);
   }
 }
