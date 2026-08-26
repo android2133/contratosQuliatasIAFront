@@ -132,6 +132,13 @@ export const routes: Routes = [
                 (m) => m.ConversacionesComponent
               ),
           },
+          {
+            path: 'conversaciones/:idConversacion',
+            loadComponent: () =>
+              import('./features/admin/conversaciones/conversaciones.component').then(
+                (m) => m.ConversacionesComponent
+              ),
+          },
           { path: '', redirectTo: 'knowledge-base', pathMatch: 'full' },
         ],
       },

@@ -3,6 +3,17 @@ export interface VolumenDia {
   conversaciones: number;
 }
 
+export interface RangoFechas {
+  fecha_inicio: string;
+  fecha_fin: string;
+}
+
+export interface VolumenConversacionesRango {
+  rango: RangoFechas;
+  total: number;
+  volumen_conversaciones: VolumenDia[];
+}
+
 export interface MetricasGlobales {
   total_conversaciones: number;
   tokens_input: number;

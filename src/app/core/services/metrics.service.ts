@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { MetricasGlobales, MetricasOperador } from '../models/metrics.model';
+import { MetricasGlobales, MetricasOperador, VolumenConversacionesRango } from '../models/metrics.model';
 
 @Injectable({ providedIn: 'root' })
 export class MetricsService {
@@ -16,6 +16,16 @@ export class MetricsService {
     return this.http.post<MetricasOperador>(
       `${environment.conversationBaseUrl}/metricas-operador/`,
       { operador },
+    );
+  }
+
+  obtenerVolumenConversaciones(fechaInicio: string, fechaFin: string): Observable<VolumenConversacionesRango> {
+    const params = new HttpParams()
+      .set('fecha_inicio', fechaInicio)
+      .set('fecha_fin', fechaFin);
+    return this.http.get<VolumenConversacionesRango>(
+      `${environment.conversationBaseUrl}/volumen-conversaciones/`,
+      { params },
     );
   }
 }

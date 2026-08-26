@@ -1,8 +1,27 @@
+@use '@angular/material' as mat;
+
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+html {
+  @include mat.theme((
+    color: mat.$azure-palette,
+    typography: Roboto,
+    density: 0,
+  ));
+}
+
+/* Angular Material CSS-specificity tie (angular/components#28404, #29821): the MDC base
+   rule and Material's own override for the outline "notch" borders land at equal
+   specificity, so build/import order decides which wins — here it leaves a stray
+   border-right visible on the notch. Force it off with higher specificity. */
+.mat-mdc-form-field.mat-mdc-form-field .mdc-notched-outline__notch {
+  border-top: none;
+  border-right: none;
+}
 
 /* ─────────────────────────────────────────────────────────────
    Design Tokens — Apócrifos Design System

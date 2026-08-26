@@ -1,5 +1,7 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import {
   LucideSearch, LucideUser, LucideBot, LucideTriangleAlert, LucideX,
@@ -148,9 +150,11 @@ import { ConversacionDetalle, ConversacionHistorialItem } from '../../../core/mo
     </div>
   `,
 })
-export class ConversacionesComponent {
+export class ConversacionesComponent implements OnInit {
   private readonly operadoresService = inject(OperadoresService);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly folio = signal('');
   readonly folioBuscado = signal('');
@@ -158,6 +162,18 @@ export class ConversacionesComponent {
   readonly error = signal(false);
   readonly buscado = signal(false);
   readonly conversacion = signal<ConversacionDetalle | null>(null);
+
+  ngOnInit(): void {
+    this.route.paramMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        const id = params.get('idConversacion');
+        if (id) {
+          this.folio.set(id);
+          this.buscar();
+        }
+      });
+  }
 
   buscar(): void {
     const id = this.folio().trim();

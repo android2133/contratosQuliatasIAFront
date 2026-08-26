@@ -1,6 +1,9 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 import { BaseChartDirective } from 'ng2-charts';
 import { ChartConfiguration, ChartData as ChartJsData } from 'chart.js';
 import { catchError, forkJoin, map, of } from 'rxjs';
@@ -11,17 +14,33 @@ import {
 } from '@lucide/angular';
 import { MetricsService } from '../../../core/services/metrics.service';
 import { OperadoresService } from '../../../core/services/operadores.service';
-import { MetricasGlobales, MetricasOperador } from '../../../core/models/metrics.model';
+import { MetricasGlobales, MetricasOperador, VolumenConversacionesRango, VolumenDia } from '../../../core/models/metrics.model';
 import { Operador } from '../../../core/models/operador.model';
 
 const DEFAULT_OPERADORES = ['Web', 'Web 2', 'Operador 1'];
 const PAGE_SIZE_OPERADORES = 10;
+const PAGE_SIZE_VOLUMEN = 10;
 
 type ComparativaChartKind = 'radar' | 'bar' | 'line';
+type VolumenChartKind = 'bar' | 'line';
 
 interface OperadorMetricas {
   operador: string;
   data: MetricasOperador | null;
+}
+
+function formatearFechaISO(fecha: Date): string {
+  const y = fecha.getFullYear();
+  const m = String(fecha.getMonth() + 1).padStart(2, '0');
+  const d = String(fecha.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function rangoVolumenPorDefecto(): Date {
+  const inicio = new Date();
+  inicio.setHours(0, 0, 0, 0);
+  inicio.setMonth(inicio.getMonth() - 1);
+  return inicio;
 }
 
 @Component({
@@ -29,6 +48,9 @@ interface OperadorMetricas {
   imports: [
     DecimalPipe,
     FormsModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatDatepickerModule,
     BaseChartDirective,
     LucideRefreshCw, LucideMessagesSquare, LucideHash, LucideTimer,
     LucideTrendingUp, LucideCircleAlert, LucideArrowDownToLine, LucideArrowUpFromLine,
@@ -104,18 +126,148 @@ interface OperadorMetricas {
           }
         </div>
 
-        <!-- ── Volumen de conversaciones ── -->
+        <!-- ── Tokens: entrada vs salida ── -->
         <div class="card">
           <h3 style="font-size: var(--font-size-sm); font-weight: 800; color: var(--color-text-primary); margin-bottom: 1rem">
-            Volumen de conversaciones
+            Tokens: entrada vs salida
           </h3>
           @if (loading()) {
             <div class="skeleton" style="height: 11rem"></div>
-          } @else if (!globales() || globales()!.volumen_conversaciones.length === 0) {
-            <p class="text-sm" style="color: var(--color-text-muted)">Sin datos de volumen disponibles.</p>
+          } @else if (!globales() || (globales()!.tokens_input === 0 && globales()!.tokens_output === 0)) {
+            <p class="text-sm" style="color: var(--color-text-muted)">Sin datos de tokens disponibles.</p>
           } @else {
-            <div style="height: 12rem; position: relative; width: 100%">
-              <canvas baseChart [data]="volumenChartData" [options]="volumenChartOptions" [type]="volumenChartType"></canvas>
+            <div style="height: 12rem; position: relative; width: 100%; max-width: 20rem; margin: 0 auto">
+              <canvas baseChart [data]="tokensChartData()" [options]="tokensChartOptions" [type]="'doughnut'"></canvas>
+            </div>
+          }
+        </div>
+
+        <!-- ── Volumen de conversaciones ── -->
+        <div class="card">
+          <div class="flex items-start justify-between gap-3" style="margin-bottom: .75rem">
+            <h3 style="font-size: var(--font-size-sm); font-weight: 800; color: var(--color-text-primary)">
+              Volumen de conversaciones
+            </h3>
+            <select
+              [ngModel]="volumenChartType()"
+              (ngModelChange)="cambiarVolumenChartType($event)"
+              class="input-base"
+              style="max-width: 9rem; min-height: 32px; padding: 0.3rem 0.6rem; font-size: var(--font-size-xs)"
+            >
+              <option value="bar">Barras</option>
+              <option value="line">Líneas</option>
+            </select>
+          </div>
+
+          <div class="flex flex-nowrap items-end gap-3" style="margin-bottom: 1.75rem">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" style="width: 11rem; flex-shrink: 0">
+              <mat-label>Desde</mat-label>
+              <input matInput [matDatepicker]="pickerVolumenInicio"
+                [max]="volumenFechaFin()"
+                [ngModel]="volumenFechaInicio()" (ngModelChange)="volumenFechaInicio.set($event)">
+              <mat-datepicker-toggle matSuffix [for]="pickerVolumenInicio"></mat-datepicker-toggle>
+              <mat-datepicker #pickerVolumenInicio></mat-datepicker>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" style="width: 11rem; flex-shrink: 0">
+              <mat-label>Hasta</mat-label>
+              <input matInput [matDatepicker]="pickerVolumenFin"
+                [min]="volumenFechaInicio()" [max]="today"
+                [ngModel]="volumenFechaFin()" (ngModelChange)="volumenFechaFin.set($event)">
+              <mat-datepicker-toggle matSuffix [for]="pickerVolumenFin"></mat-datepicker-toggle>
+              <mat-datepicker #pickerVolumenFin></mat-datepicker>
+            </mat-form-field>
+
+            <button type="button" (click)="buscarVolumen()" [disabled]="loadingVolumen() || rangoVolumenInvalido()"
+              class="btn-primary-action" style="min-height: 40px; width: auto; flex-shrink: 0; padding: 0 1.25rem">
+              @if (loadingVolumen()) {
+                <svg lucideRefreshCw class="w-4 h-4 animate-spin"></svg>
+              }
+              Buscar
+            </button>
+          </div>
+
+          @if (rangoVolumenInvalido()) {
+            <p class="text-xs" style="color: var(--color-danger); margin-bottom: .75rem">
+              La fecha "Desde" no puede ser posterior a la fecha "Hasta".
+            </p>
+          }
+
+          @if (errorVolumen()) {
+            <p class="text-xs" style="color: var(--color-danger); margin-bottom: .75rem">
+              No fue posible cargar el volumen de conversaciones para ese rango.
+            </p>
+          }
+
+          @if (loadingVolumen()) {
+            <div class="skeleton" style="height: 11rem; margin-bottom: 1rem"></div>
+          } @else if (!volumenRango() || volumenFilas().length === 0) {
+            <p class="text-sm" style="color: var(--color-text-muted); margin-bottom: 1rem">Sin datos de volumen disponibles para ese rango.</p>
+          } @else {
+            <div style="height: 14rem; position: relative; width: 100%; margin-bottom: 1rem">
+              <canvas baseChart [data]="volumenChartData" [options]="volumenChartOptions()" [type]="volumenChartType()"></canvas>
+            </div>
+
+            <div class="table-card" style="border: none; box-shadow: none">
+              <div class="table-card__scroll">
+                <table class="inbox-table">
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Conversaciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (fila of paginatedVolumenFilas(); track fila.fecha) {
+                      <tr>
+                        <td>{{ fila.fecha }}</td>
+                        <td>{{ fila.conversaciones }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                  <tfoot>
+                    <tr style="background: var(--color-primary-subtle)">
+                      <td style="border-top: 2px solid var(--color-primary-light); font-weight: 800; color: var(--color-text-primary)">
+                        Total
+                      </td>
+                      <td style="border-top: 2px solid var(--color-primary-light); font-weight: 800; font-size: 1.15rem; color: var(--color-primary)">
+                        {{ volumenRango()!.total }}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              @if (totalPagesVolumen() > 1) {
+                <div class="pagination">
+                  <span class="pagination__info">
+                    Mostrando {{ pageStartVolumen() }}–{{ pageEndVolumen() }} de {{ volumenFilas().length }}
+                  </span>
+                  <div class="pagination__controls">
+                    <button class="pagination__btn" [disabled]="currentPageVolumen() === 1"
+                      (click)="goToPageVolumen(1)" title="Primera página">
+                      «
+                    </button>
+                    <button class="pagination__btn" [disabled]="currentPageVolumen() === 1"
+                      (click)="prevPageVolumen()" title="Anterior">
+                      ‹
+                    </button>
+                    @for (p of visiblePagesVolumen(); track p) {
+                      <button class="pagination__btn"
+                        [class.pagination__btn--active]="p === currentPageVolumen()"
+                        (click)="goToPageVolumen(p)">{{ p }}</button>
+                    }
+                    <button class="pagination__btn" [disabled]="currentPageVolumen() === totalPagesVolumen()"
+                      (click)="nextPageVolumen()" title="Siguiente">
+                      ›
+                    </button>
+                    <button class="pagination__btn" [disabled]="currentPageVolumen() === totalPagesVolumen()"
+                      (click)="goToPageVolumen(totalPagesVolumen())" title="Última página">
+                      »
+                    </button>
+                  </div>
+                </div>
+              }
             </div>
           }
         </div>
@@ -313,6 +465,28 @@ export class MetricsComponent implements OnInit {
   readonly error = signal(false);
   readonly globales = signal<MetricasGlobales | null>(null);
 
+  readonly tokensChartData = computed<ChartJsData<'doughnut'>>(() => {
+    const g = this.globales();
+    return {
+      labels: ['Tokens de entrada', 'Tokens de salida'],
+      datasets: [{
+        data: [g?.tokens_input ?? 0, g?.tokens_output ?? 0],
+        backgroundColor: ['#941B80', '#0096AE'],
+        hoverBackgroundColor: ['#6f145f', '#016F95'],
+        borderWidth: 0,
+      }],
+    };
+  });
+
+  readonly tokensChartOptions: ChartConfiguration<'doughnut'>['options'] = {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '65%',
+    plugins: {
+      legend: { position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, padding: 16 } },
+    },
+  };
+
   readonly operadores = signal<string[]>([...DEFAULT_OPERADORES]);
   readonly loadingOperador = signal(true);
   readonly metricasPorOperador = signal<OperadorMetricas[]>([]);
@@ -352,17 +526,71 @@ export class MetricsComponent implements OnInit {
     this.operadoresDisponibles().filter((op) => !this.operadores().includes(op.operador)),
   );
 
-  readonly volumenChartType = 'bar' as const;
-  volumenChartData: ChartJsData<'bar'> = { labels: [], datasets: [] };
-  volumenChartOptions: ChartConfiguration<'bar'>['options'] = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { grid: { display: false } },
-      y: { border: { dash: [4, 4] }, grid: { color: '#e2e8f0' }, ticks: { precision: 0 } },
+  readonly today = new Date();
+  readonly volumenFechaInicio = signal<Date>(rangoVolumenPorDefecto());
+  readonly volumenFechaFin = signal<Date>(this.today);
+  readonly rangoVolumenInvalido = computed(() => this.volumenFechaInicio() > this.volumenFechaFin());
+
+  readonly loadingVolumen = signal(true);
+  readonly errorVolumen = signal(false);
+  readonly volumenRango = signal<VolumenConversacionesRango | null>(null);
+  readonly volumenFilas = computed(() =>
+    [...(this.volumenRango()?.volumen_conversaciones ?? [])].sort((a, b) => a.fecha.localeCompare(b.fecha)),
+  );
+
+  readonly currentPageVolumen = signal(1);
+  readonly totalPagesVolumen = computed(() =>
+    Math.max(1, Math.ceil(this.volumenFilas().length / PAGE_SIZE_VOLUMEN)),
+  );
+  readonly paginatedVolumenFilas = computed(() =>
+    this.volumenFilas().slice(
+      (this.currentPageVolumen() - 1) * PAGE_SIZE_VOLUMEN,
+      this.currentPageVolumen() * PAGE_SIZE_VOLUMEN,
+    ),
+  );
+  readonly pageStartVolumen = computed(() =>
+    this.volumenFilas().length === 0 ? 0 : (this.currentPageVolumen() - 1) * PAGE_SIZE_VOLUMEN + 1,
+  );
+  readonly pageEndVolumen = computed(() =>
+    Math.min(this.currentPageVolumen() * PAGE_SIZE_VOLUMEN, this.volumenFilas().length),
+  );
+  readonly visiblePagesVolumen = computed(() => {
+    const total = this.totalPagesVolumen();
+    const cur = this.currentPageVolumen();
+    const range: number[] = [];
+    for (let i = Math.max(1, cur - 2); i <= Math.min(total, cur + 2); i++) {
+      range.push(i);
+    }
+    return range;
+  });
+
+  readonly volumenChartType = signal<VolumenChartKind>('bar');
+  volumenChartData: ChartJsData<any> = { labels: [], datasets: [] };
+
+  private readonly volumenOptionsByType: Record<VolumenChartKind, ChartConfiguration<any>['options']> = {
+    bar: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { border: { dash: [4, 4] }, grid: { color: '#e2e8f0' }, ticks: { precision: 0 } },
+      },
+    },
+    line: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      elements: { line: { tension: 0.3 } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { border: { dash: [4, 4] }, grid: { color: '#e2e8f0' }, ticks: { precision: 0 } },
+      },
     },
   };
+
+  readonly volumenChartOptions = computed(() => this.volumenOptionsByType[this.volumenChartType()]);
+  private volumenRawOrdenado: VolumenDia[] = [];
 
   private comparativaRawValues: number[][] = [];
 
@@ -427,6 +655,7 @@ export class MetricsComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargar();
+    this.buscarVolumen();
     this.cargarOperador();
     this.cargarOperadoresDisponibles();
   }
@@ -452,18 +681,6 @@ export class MetricsComponent implements OnInit {
     this.metricsService.obtenerGlobales().subscribe({
       next: (res) => {
         this.globales.set(res);
-        const volumen = [...res.volumen_conversaciones].sort((a, b) => b.fecha.localeCompare(a.fecha));
-        this.volumenChartData = {
-          labels: volumen.map((v) => v.fecha),
-          datasets: [{
-            data: volumen.map((v) => v.conversaciones),
-            label: 'Conversaciones',
-            backgroundColor: '#941B80',
-            hoverBackgroundColor: '#6f145f',
-            borderRadius: 6,
-            barThickness: 24,
-          }],
-        };
         this.loading.set(false);
       },
       error: () => {
@@ -471,6 +688,68 @@ export class MetricsComponent implements OnInit {
         this.loading.set(false);
       },
     });
+  }
+
+  buscarVolumen(): void {
+    if (this.rangoVolumenInvalido()) return;
+
+    this.loadingVolumen.set(true);
+    this.errorVolumen.set(false);
+
+    const fechaInicio = formatearFechaISO(this.volumenFechaInicio());
+    const fechaFin = formatearFechaISO(this.volumenFechaFin());
+
+    this.metricsService.obtenerVolumenConversaciones(fechaInicio, fechaFin).subscribe({
+      next: (res) => {
+        this.volumenRango.set(res);
+        this.volumenRawOrdenado = [...res.volumen_conversaciones].sort((a, b) => b.fecha.localeCompare(a.fecha));
+        this.construirVolumenChartData();
+        this.currentPageVolumen.set(1);
+        this.loadingVolumen.set(false);
+      },
+      error: () => {
+        this.volumenRango.set(null);
+        this.volumenRawOrdenado = [];
+        this.errorVolumen.set(true);
+        this.loadingVolumen.set(false);
+      },
+    });
+  }
+
+  cambiarVolumenChartType(tipo: VolumenChartKind): void {
+    this.volumenChartType.set(tipo);
+    this.construirVolumenChartData();
+  }
+
+  private construirVolumenChartData(): void {
+    const labels = this.volumenRawOrdenado.map((v) => v.fecha);
+    const data = this.volumenRawOrdenado.map((v) => v.conversaciones);
+
+    this.volumenChartData = this.volumenChartType() === 'line'
+      ? {
+          labels,
+          datasets: [{
+            data,
+            label: 'Conversaciones',
+            borderColor: '#941B80',
+            backgroundColor: 'rgba(148, 27, 128, 0.12)',
+            pointBackgroundColor: '#941B80',
+            pointBorderColor: '#fff',
+            pointRadius: 4,
+            fill: true,
+          }],
+        }
+      : {
+          labels,
+          datasets: [{
+            data,
+            label: 'Conversaciones',
+            backgroundColor: '#941B80',
+            hoverBackgroundColor: '#6f145f',
+            borderRadius: 6,
+            barThickness: 24,
+          }],
+        };
   }
 
   private cargarOperador(): void {
@@ -518,6 +797,10 @@ export class MetricsComponent implements OnInit {
   goToPageOperadores(p: number): void { this.currentPageOperadores.set(p); }
   prevPageOperadores(): void { this.currentPageOperadores.update((p) => Math.max(1, p - 1)); }
   nextPageOperadores(): void { this.currentPageOperadores.update((p) => Math.min(this.totalPagesOperadores(), p + 1)); }
+
+  goToPageVolumen(p: number): void { this.currentPageVolumen.set(p); }
+  prevPageVolumen(): void { this.currentPageVolumen.update((p) => Math.max(1, p - 1)); }
+  nextPageVolumen(): void { this.currentPageVolumen.update((p) => Math.min(this.totalPagesVolumen(), p + 1)); }
 
   private buildComparativaChart(resultados: OperadorMetricas[]): void {
     const ejes: { label: string; valor: (d: MetricasOperador) => number }[] = [

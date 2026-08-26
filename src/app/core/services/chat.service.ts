@@ -43,13 +43,13 @@ export interface ChatResponse {
 }
 
 const DEFAULT_OPERADOR = 'Web 2';
-const DEFAULT_MODELO = 'gemini-2.5-flash';
+const DEFAULT_MODELO = 'gemini-3.5-flash';
 
 export const MODELOS_DISPONIBLES = [
   'gemini-2.5-flash',
   'gemini-3.5-flash',
   'gemini-3.5-pro',
-  'gemini-3.5-pro-lite',
+  'gemini-3.5-flash-lite',
 ] as const;
 
 @Injectable({ providedIn: 'root' })
