@@ -161,6 +161,13 @@ export const routes: Routes = [
                 (m) => m.FaqComponent
               ),
           },
+          {
+            path: 'historial',
+            loadComponent: () =>
+              import('./features/operator/historial/historial.component').then(
+                (m) => m.HistorialComponent
+              ),
+          },
           { path: '', redirectTo: 'chat', pathMatch: 'full' },
         ],
       },

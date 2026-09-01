@@ -4,34 +4,32 @@ import {
 } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
-import { DecimalPipe } from '@angular/common';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   LucideSend, LucidePaperclip, LucideX, LucideBot, LucideUser,
   LucideFileText, LucideSparkles, LucideRefreshCw, LucideCopy, LucideCheck,
   LucideCircleQuestionMark, LucideMessageCircleQuestion, LucideSettings, LucideHistory,
-  LucideTriangleAlert, LucideChevronLeft, LucideChevronRight, LucideDownload,
+  LucideDownload,
 } from '@lucide/angular';
 import { Message, AttachedFile, TableData, ChartData, RetryPayload } from '../../../core/models/message.model';
 import { PreguntaFrecuente } from '../../../core/models/faq.model';
 import { InstruccionSistema } from '../../../core/models/instruccion-sistema.model';
 import { Operador } from '../../../core/models/operador.model';
-import { Conversacion, ConversacionDetalle } from '../../../core/models/conversacion.model';
+import { ConversacionDetalle } from '../../../core/models/conversacion.model';
 import { ChatService, Documento } from '../../../core/services/chat.service';
 import { FaqService } from '../../../core/services/faq.service';
 import { InstruccionesSistemaService } from '../../../core/services/instrucciones-sistema.service';
 import { OperadoresService } from '../../../core/services/operadores.service';
 import { marked } from 'marked';
 
-const PAGE_SIZE_HISTORIAL = 8;
-
 @Component({
   selector: 'app-chat',
   imports: [
-    FormsModule, DecimalPipe,
+    FormsModule, RouterLink,
     LucideSend, LucidePaperclip, LucideX, LucideBot, LucideUser,
     LucideFileText, LucideSparkles, LucideRefreshCw, LucideCopy, LucideCheck,
     LucideCircleQuestionMark, LucideMessageCircleQuestion, LucideSettings, LucideHistory,
-    LucideTriangleAlert, LucideChevronLeft, LucideChevronRight, LucideDownload,
+    LucideDownload,
   ],
   template: `
     <div class="relative flex flex-col h-full" style="background: var(--color-bg)">
@@ -61,10 +59,9 @@ const PAGE_SIZE_HISTORIAL = 8;
               }
             </span>
           }
-          <button (click)="toggleHistorial()" class="icon-button" type="button"
-            [class.active]="showHistorialPanel()" title="Historial de conversaciones">
+          <a routerLink="/operator/historial" class="icon-button" title="Historial de conversaciones">
             <svg lucideHistory class="w-4 h-4"></svg>
-          </button>
+          </a>
           <button (click)="toggleSettings()" class="icon-button" type="button"
             [class.active]="showSettingsPanel()" title="Configurar operador y contexto">
             <svg lucideSettings class="w-4 h-4"></svg>
@@ -161,80 +158,6 @@ const PAGE_SIZE_HISTORIAL = 8;
               placeholder="Instrucciones del sistema para el agente..."
               style="resize: vertical; font-family: var(--font-family)"
             ></textarea>
-          </div>
-        }
-
-        @if (showHistorialPanel()) {
-          <div style="position: absolute; top: 100%; right: 1.5rem; z-index: 20; width: 26rem; margin-top: .5rem;
-                      background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);
-                      box-shadow: var(--shadow-lg, 0 10px 30px rgba(0,0,0,.12)); padding: 1rem; display: flex; flex-direction: column">
-            <div class="flex items-center justify-between" style="margin-bottom: .75rem">
-              <p style="font-size: var(--font-size-sm); font-weight: 800; color: var(--color-text-primary)">
-                Historial ({{ operador() }})
-              </p>
-              <button (click)="showHistorialPanel.set(false)" class="icon-button" type="button" title="Cerrar">
-                <svg lucideX class="w-3.5 h-3.5"></svg>
-              </button>
-            </div>
-
-            @if (historialLoading()) {
-              <div class="flex flex-col gap-2">
-                @for (i of [0, 1, 2]; track i) {
-                  <div class="skeleton" style="height: 3.75rem; border-radius: var(--radius-md)"></div>
-                }
-              </div>
-            } @else if (historialError()) {
-              <div class="flex items-center gap-2" style="padding: .5rem 0">
-                <svg lucideTriangleAlert class="w-4 h-4 shrink-0" style="color: var(--color-danger)"></svg>
-                <p style="font-size: var(--font-size-xs); color: var(--color-danger)">
-                  No fue posible cargar el historial de este operador.
-                </p>
-              </div>
-            } @else if (historialConversaciones().length === 0) {
-              <p style="font-size: var(--font-size-xs); color: var(--color-text-muted)">
-                Este operador no tiene conversaciones registradas.
-              </p>
-            } @else {
-              <div style="display: flex; flex-direction: column; gap: .35rem; max-height: 22rem; overflow-y: auto">
-                @for (conv of paginatedHistorial(); track conv.conversationId) {
-                  <button
-                    type="button"
-                    (click)="retomarConversacion(conv)"
-                    style="text-align: left; border-radius: var(--radius-md); padding: .5rem .6rem; cursor: pointer;
-                           font-family: var(--font-family); border: 1px solid var(--color-border); background: transparent"
-                  >
-                    <p style="margin: 0 0 .25rem; font-size: var(--font-size-xs); line-height: 1.4;
-                              color: var(--color-text-primary); display: -webkit-box; -webkit-line-clamp: 2;
-                              -webkit-box-orient: vertical; overflow: hidden">
-                      {{ conv.tituloConversacion }}
-                    </p>
-                    <div class="flex items-center gap-2" style="font-size: 0.68rem; color: var(--color-text-muted)">
-                      <span>{{ formatDateTime(conv.inicio) }}</span>
-                      <span>·</span>
-                      <span>{{ conv.consultasRealizadas }} {{ conv.consultasRealizadas === 1 ? 'consulta' : 'consultas' }}</span>
-                      <span>·</span>
-                      <span>{{ conv.tokensTotal | number }} tokens</span>
-                    </div>
-                  </button>
-                }
-              </div>
-
-              @if (totalPagesHistorial() > 1) {
-                <div class="flex items-center justify-between" style="margin-top: .6rem; padding-top: .6rem; border-top: 1px solid var(--color-border)">
-                  <span style="font-size: var(--font-size-xs); color: var(--color-text-muted)">
-                    Página {{ currentPageHistorial() }} de {{ totalPagesHistorial() }}
-                  </span>
-                  <div class="flex items-center gap-1">
-                    <button class="pagination__btn" [disabled]="currentPageHistorial() === 1" (click)="prevPageHistorial()">
-                      <svg lucideChevronLeft class="w-3.5 h-3.5"></svg>
-                    </button>
-                    <button class="pagination__btn" [disabled]="currentPageHistorial() === totalPagesHistorial()" (click)="nextPageHistorial()">
-                      <svg lucideChevronRight class="w-3.5 h-3.5"></svg>
-                    </button>
-                  </div>
-                </div>
-              }
-            }
           </div>
         }
       </div>
@@ -508,6 +431,8 @@ export class ChatComponent implements AfterViewChecked, OnInit {
 
   private sanitizer = inject(DomSanitizer);
   private cdr = inject(ChangeDetectorRef);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
   private chatService = inject(ChatService);
   private faqService = inject(FaqService);
   private instruccionesSistemaService = inject(InstruccionesSistemaService);
@@ -533,22 +458,7 @@ export class ChatComponent implements AfterViewChecked, OnInit {
 
   readonly operadoresDisponibles = signal<Operador[]>([]);
 
-  readonly showHistorialPanel = signal(false);
-  readonly historialLoading = signal(false);
-  readonly historialError = signal(false);
-  readonly historialConversaciones = signal<Conversacion[]>([]);
   readonly retomarLoading = signal(false);
-
-  readonly currentPageHistorial = signal(1);
-  readonly totalPagesHistorial = computed(() =>
-    Math.max(1, Math.ceil(this.historialConversaciones().length / PAGE_SIZE_HISTORIAL)),
-  );
-  readonly paginatedHistorial = computed(() =>
-    this.historialConversaciones().slice(
-      (this.currentPageHistorial() - 1) * PAGE_SIZE_HISTORIAL,
-      this.currentPageHistorial() * PAGE_SIZE_HISTORIAL,
-    ),
-  );
 
   readonly inputText = signal('');
   private shouldScroll = false;
@@ -566,15 +476,19 @@ export class ChatComponent implements AfterViewChecked, OnInit {
       next: (items) => this.operadoresDisponibles.set(items),
       error: () => this.operadoresDisponibles.set([]),
     });
+    const conversacionId = this.route.snapshot.queryParamMap.get('conversacion');
+
     this.instruccionesSistemaService.listar().subscribe({
       next: (items) => {
         this.instruccionesDisponibles.set(items);
         if (items.length > 0) this.onSeleccionarInstruccion(items[0].idInstruccion);
-        this.startChat();
+        if (conversacionId) this.retomarConversacionPorId(conversacionId);
+        else this.startChat();
       },
       error: () => {
         this.instruccionesDisponibles.set([]);
-        this.startChat();
+        if (conversacionId) this.retomarConversacionPorId(conversacionId);
+        else this.startChat();
       },
     });
   }
@@ -714,41 +628,15 @@ export class ChatComponent implements AfterViewChecked, OnInit {
   }
 
   toggleSettings(): void {
-    this.showHistorialPanel.set(false);
     this.showSettingsPanel.set(!this.showSettingsPanel());
   }
 
-  toggleHistorial(): void {
-    this.showSettingsPanel.set(false);
-    const next = !this.showHistorialPanel();
-    this.showHistorialPanel.set(next);
-    if (next) this.cargarHistorial();
-  }
-
-  private cargarHistorial(): void {
-    this.historialLoading.set(true);
-    this.historialError.set(false);
-    this.currentPageHistorial.set(1);
-    this.operadoresService.listarConversaciones(this.operador()).subscribe({
-      next: (conversaciones) => {
-        this.historialConversaciones.set(conversaciones);
-        this.historialLoading.set(false);
-      },
-      error: () => {
-        this.historialConversaciones.set([]);
-        this.historialError.set(true);
-        this.historialLoading.set(false);
-      },
-    });
-  }
-
-  retomarConversacion(conv: Conversacion): void {
-    this.showHistorialPanel.set(false);
+  private retomarConversacionPorId(conversationId: string): void {
     this.messages.set([]);
     this.retomarLoading.set(true);
     this.shouldScroll = true;
 
-    this.operadoresService.obtenerConversacion(conv.conversationId).subscribe({
+    this.operadoresService.obtenerConversacion(conversationId).subscribe({
       next: (detalle) => {
         this.chatService.resumirConversacion(detalle.conversationId);
         this.messages.set(this.mapHistorialAMensajes(detalle));
@@ -759,11 +647,11 @@ export class ChatComponent implements AfterViewChecked, OnInit {
       error: () => {
         // Fallback: si el historial detallado no está disponible, al menos
         // dejamos la conversación lista para continuar desde el conversationId.
-        this.chatService.resumirConversacion(conv.conversationId);
+        this.chatService.resumirConversacion(conversationId);
         this.messages.set([{
           id: crypto.randomUUID(),
           role: 'assistant',
-          content: `**Continuando conversación** del ${this.formatDateTime(conv.inicio)}\n\n${conv.tituloConversacion}\n\n_No fue posible recuperar el historial detallado._`,
+          content: `**Continuando conversación**\n\n_No fue posible recuperar el historial detallado, pero puedes seguir escribiendo._`,
           contentType: 'markdown',
           timestamp: new Date(),
         }]);
@@ -788,15 +676,6 @@ export class ChatComponent implements AfterViewChecked, OnInit {
     });
   }
 
-  prevPageHistorial(): void { this.currentPageHistorial.update((p) => Math.max(1, p - 1)); }
-  nextPageHistorial(): void { this.currentPageHistorial.update((p) => Math.min(this.totalPagesHistorial(), p + 1)); }
-
-  formatDateTime(iso: string): string {
-    return new Date(iso).toLocaleString('es-MX', {
-      day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-    });
-  }
-
   usarPreguntaFrecuente(pregunta: string): void {
     this.inputText.set(pregunta);
     this.showFaqPanel.set(false);
@@ -808,6 +687,9 @@ export class ChatComponent implements AfterViewChecked, OnInit {
     this.attachedFiles.set([]);
     this.inputText.set('');
     this.chatService.resetConversacion();
+    if (this.route.snapshot.queryParamMap.has('conversacion')) {
+      this.router.navigate([], { queryParams: {}, replaceUrl: true });
+    }
     setTimeout(() => this.startChat(), 100);
   }
 

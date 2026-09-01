@@ -24,6 +24,7 @@ const PAGE_LABELS: Record<string, string> = {
   '/admin/conversaciones': 'Conversaciones',
   '/operator/chat': 'Chat Agente',
   '/operator/faq': 'Preguntas Frecuentes',
+  '/operator/historial': 'Historial',
 };
 
 @Component({
@@ -114,6 +115,10 @@ const PAGE_LABELS: Record<string, string> = {
             <a routerLink="/operator/faq" routerLinkActive="nav-item-active" class="nav-item">
               <svg lucideCircleQuestionMark class="w-4 h-4 shrink-0"></svg>
               <span>Preguntas frecuentes</span>
+            </a>
+            <a routerLink="/operator/historial" routerLinkActive="nav-item-active" class="nav-item">
+              <svg lucideHistory class="w-4 h-4 shrink-0"></svg>
+              <span>Historial</span>
             </a>
           }
         </nav>
