@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
@@ -91,7 +91,9 @@ const EXPEDIENTE = 'INSTRUCCIONES DEL SISTEMA';
               <div class="card" style="padding: 1.1rem 1.25rem">
                 @if (editandoId() === item.idInstruccion) {
                   <div class="flex flex-col gap-2.5">
-                    <textarea class="input-base" rows="3" [(ngModel)]="textoEdicion"></textarea>
+                    <textarea #editArea class="input-base" rows="6"
+                      style="min-height: 200px; max-height: 65vh; resize: vertical; line-height: 1.55; overflow-y: auto"
+                      [(ngModel)]="textoEdicion" (input)="autosizeEdit($event)"></textarea>
                     @if (editarError()) {
                       <p class="flex items-center gap-1.5" style="font-size: var(--font-size-xs); color: var(--color-danger)">
                         <svg lucideTriangleAlert class="w-3.5 h-3.5 shrink-0"></svg>
@@ -223,6 +225,11 @@ export class InstruccionesSistemaComponent implements OnInit {
 
   readonly editandoId = signal<number | null>(null);
   textoEdicion = '';
+
+  @ViewChild('editArea')
+  set editArea(ref: ElementRef<HTMLTextAreaElement> | undefined) {
+    if (ref) queueMicrotask(() => this.autosize(ref.nativeElement));
+  }
   readonly guardando = signal(false);
   readonly editarError = signal('');
 
@@ -286,6 +293,16 @@ export class InstruccionesSistemaComponent implements OnInit {
     this.editandoId.set(item.idInstruccion);
     this.textoEdicion = item.instruccionesSistema;
     this.editarError.set('');
+  }
+
+  autosizeEdit(ev: Event): void {
+    this.autosize(ev.target as HTMLTextAreaElement);
+  }
+
+  private autosize(el: HTMLTextAreaElement): void {
+    el.style.height = 'auto';
+    const max = window.innerHeight * 0.65;
+    el.style.height = `${Math.min(el.scrollHeight + 2, max)}px`;
   }
 
   cancelarEdicion(): void {
