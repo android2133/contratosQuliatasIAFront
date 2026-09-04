@@ -8,6 +8,7 @@ on:
       - 'src/**'
       - 'angular.json'
       - 'package.json'
+      - 'deploy-contratos-frontend.sh'
   workflow_dispatch:
     inputs:
       environment:

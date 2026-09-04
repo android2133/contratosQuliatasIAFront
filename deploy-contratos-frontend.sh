@@ -36,7 +36,7 @@ echo "  CONVERSATION_BASE_URL:          ${CONVERSATION_BASE_URL}"
 echo "  INSTRUCCIONES_SISTEMA_BASE_URL: ${INSTRUCCIONES_SISTEMA_BASE_URL} (vacío hasta que se despliegue)"
 echo "  BITACORA_BASE_URL:              ${BITACORA_BASE_URL}"
 
-npm ci
+npm ci --legacy-peer-deps
 
 # Sustituir los placeholders ANTES del build.
 sed -i "s|__FILES_BASE_URL__|${FILES_BASE_URL}|g" src/environments/environment.prod.ts
