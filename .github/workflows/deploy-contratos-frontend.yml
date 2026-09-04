@@ -1,0 +1,54 @@
+name: Deploy frontend (Firebase Hosting)
+
+on:
+  push:
+    branches:
+      - aHernandez_main-qualitas
+    paths:
+      - 'src/**'
+      - 'angular.json'
+      - 'package.json'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Ambiente destino"
+        required: true
+        type: choice
+        options: [dev, qa, prod]
+
+concurrency:
+  group: contratos-frontend-${{ inputs.environment || 'qa' }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ inputs.environment || 'qa' }}
+    env:
+      PROJECT_ID: ${{ vars.GCP_PROJECT }}
+      REGION: ${{ vars.GCP_REGION || 'us-central1' }}
+      AUTH_USUARIO: ${{ secrets.AUTH_USUARIO }}
+      AUTH_CONTRASENA: ${{ secrets.AUTH_CONTRASENA }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/846812080655/locations/global/workloadIdentityPools/github-pool-qa/providers/github-provider
+          service_account: firebase-hosting-deployer@qlts-dev-mx-au-ia-agentes.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Desplegar con deploy.sh
+        run: bash ./deploy-contratos-frontend.sh
