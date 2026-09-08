@@ -118,11 +118,22 @@ html {
   a   { color: inherit; text-decoration: none; }
   img { max-width: 100%; display: block; }
 
-  ::-webkit-scrollbar       { width: 6px; height: 6px; }
+  * {
+    scrollbar-width: auto;
+    scrollbar-color: var(--color-primary) transparent;
+  }
+
+  ::-webkit-scrollbar       { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    background:    var(--color-border);
+    background:    var(--color-primary);
     border-radius: var(--radius-full);
+    border:        2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background:      var(--color-primary-dark);
+    background-clip: content-box;
   }
 
   .sr-only {

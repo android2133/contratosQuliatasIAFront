@@ -21,7 +21,7 @@ const PAGE_SIZE_HISTORIAL = 10;
     LucideRefreshCw, LucideMessageSquare,
   ],
   template: `
-    <div class="h-full overflow-y-auto" style="background: var(--color-bg)">
+    <div class="h-full overflow-y-auto" style="background: var(--color-bg); scrollbar-gutter: stable">
       <div class="inbox-page">
 
         <!-- ── Encabezado ── -->

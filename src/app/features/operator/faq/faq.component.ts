@@ -15,8 +15,8 @@ const PAGE_SIZE = 10;
     LucideChevronsLeft, LucideChevronLeft, LucideChevronRight, LucideChevronsRight,
   ],
   template: `
-    <div class="h-full overflow-y-auto" style="background: var(--color-bg)">
-      <div class="inbox-page" style="max-width: 860px">
+    <div class="h-full overflow-y-auto" style="background: var(--color-bg); scrollbar-gutter: stable">
+      <div class="inbox-page">
 
         <div class="inbox-page__header">
           <div>

@@ -23,8 +23,8 @@ const EXPEDIENTE = 'INSTRUCCIONES DEL SISTEMA';
     LucideChevronsLeft, LucideChevronLeft, LucideChevronRight, LucideChevronsRight,
   ],
   template: `
-    <div class="h-full overflow-y-auto" style="background: var(--color-bg)">
-      <div class="inbox-page" style="max-width: 860px">
+    <div class="h-full overflow-y-auto" style="background: var(--color-bg); scrollbar-gutter: stable">
+      <div class="inbox-page">
 
         <div class="inbox-page__header">
           <div>
@@ -115,14 +115,19 @@ const EXPEDIENTE = 'INSTRUCCIONES DEL SISTEMA';
                   </div>
                 } @else {
                   <div class="flex items-start justify-between gap-3">
-                    <div class="flex items-start gap-3 min-w-0">
+                    <div class="flex items-start gap-3 min-w-0 flex-1">
                       <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
                         style="background: var(--color-primary-subtle); border: 1px solid var(--color-primary-light)">
                         <svg lucideBotMessageSquare class="w-4 h-4" style="color: var(--color-primary)"></svg>
                       </div>
-                      <p style="color: var(--color-text-primary); font-size: var(--font-size-sm); white-space: pre-wrap; overflow-wrap: anywhere">
-                        {{ item.instruccionesSistema }}
-                      </p>
+                      <div class="min-w-0 flex-1">
+                        <p class="instr-text" [class.instr-text--clamp]="!estaExpandido(item.idInstruccion)">{{ item.instruccionesSistema }}</p>
+                        @if (esLargo(item)) {
+                          <button (click)="toggleExpandido(item.idInstruccion)" type="button" class="instr-toggle">
+                            {{ estaExpandido(item.idInstruccion) ? 'Ver menos' : 'Ver más' }}
+                          </button>
+                        }
+                      </div>
                     </div>
                     <div class="flex items-center gap-1 shrink-0">
                       <button (click)="iniciarEdicion(item)"
@@ -183,6 +188,34 @@ const EXPEDIENTE = 'INSTRUCCIONES DEL SISTEMA';
       </div>
     </div>
   `,
+  styles: [`
+    .instr-text {
+      margin: 0;
+      color: var(--color-text-primary);
+      font-size: var(--font-size-sm);
+      line-height: 1.55;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .instr-text--clamp {
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .instr-toggle {
+      margin-top: .45rem;
+      padding: 0;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-family: var(--font-family);
+      font-size: var(--font-size-xs);
+      font-weight: 700;
+      color: var(--color-primary);
+    }
+    .instr-toggle:hover { text-decoration: underline; }
+  `],
 })
 export class InstruccionesSistemaComponent implements OnInit {
   private readonly svc = inject(InstruccionesSistemaService);
@@ -236,6 +269,26 @@ export class InstruccionesSistemaComponent implements OnInit {
   readonly confirmandoEliminarId = signal<number | null>(null);
   readonly eliminandoId = signal<number | null>(null);
 
+  readonly expandidos = signal<Set<number>>(new Set());
+
+  estaExpandido(id: number): boolean {
+    return this.expandidos().has(id);
+  }
+
+  toggleExpandido(id: number): void {
+    this.expandidos.update((set) => {
+      const next = new Set(set);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  esLargo(item: InstruccionSistema): boolean {
+    const t = item.instruccionesSistema ?? '';
+    return t.length > 220 || (t.match(/\n/g)?.length ?? 0) >= 4;
+  }
+
   ngOnInit(): void {
     this.cargar();
   }
@@ -256,9 +309,9 @@ export class InstruccionesSistemaComponent implements OnInit {
     });
   }
 
-  goToPage(p: number): void { this.currentPage.set(p); }
-  prevPage(): void { this.currentPage.update((p) => Math.max(1, p - 1)); }
-  nextPage(): void { this.currentPage.update((p) => Math.min(this.totalPages(), p + 1)); }
+  goToPage(p: number): void { this.currentPage.set(p); this.expandidos.set(new Set()); }
+  prevPage(): void { this.currentPage.update((p) => Math.max(1, p - 1)); this.expandidos.set(new Set()); }
+  nextPage(): void { this.currentPage.update((p) => Math.min(this.totalPages(), p + 1)); this.expandidos.set(new Set()); }
 
   toggleCrear(): void {
     this.mostrarCrear.set(!this.mostrarCrear());
