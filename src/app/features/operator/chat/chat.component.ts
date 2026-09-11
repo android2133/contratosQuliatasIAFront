@@ -409,7 +409,7 @@ import { marked } from 'marked';
           <input #attachInput type="file" multiple class="hidden" (change)="onFileAttached($event)" />
 
           <textarea #messageInput [ngModel]="inputText()" (ngModelChange)="inputText.set($event)" (keydown.enter)="onEnter($event)" (input)="autoResize($event)"
-            placeholder="Escribe tu mensaje... (Enter para enviar)"
+            placeholder="Escribe tu mensaje.... (Enter para enviar)"
             rows="1"
             class="flex-1 resize-none bg-transparent text-sm text-slate-900 placeholder-slate-400
                    focus:outline-none leading-relaxed min-h-[24px] max-h-40 py-0.5"></textarea>
