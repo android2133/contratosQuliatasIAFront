@@ -1,13 +1,21 @@
 {
   "projects": {
     "default": "qlts-dev-mx-au-ia-agentes",
-    "qa": "qlts-dev-mx-au-ia-agentes"
+    "qa": "qlts-dev-mx-au-ia-agentes",
+    "prod": "qlts-pro-mx-au-ia-agentes"
   },
   "targets": {
     "qlts-dev-mx-au-ia-agentes": {
       "hosting": {
-        "desa": [
+        "contratos_app": [
           "contratos-ia-qa"
+        ]
+      }
+    },
+    "qlts-pro-mx-au-ia-agentes": {
+      "hosting": {
+        "contratos_app": [
+          "contratos-ia-prod"
         ]
       }
     }

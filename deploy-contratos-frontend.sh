@@ -8,9 +8,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${SCRIPT_DIR}"
 
-PROJECT_ID="${PROJECT_ID:-qlts-dev-mx-au-ia-agentes}"
+PROJECT_ID="${PROJECT_ID:-qlts-pro-mx-au-ia-agentes}"
 REGION="${REGION:-us-central1}"
-FIREBASE_HOSTING_TARGET="${FIREBASE_HOSTING_TARGET:-desa}"
+FIREBASE_HOSTING_TARGET="${FIREBASE_HOSTING_TARGET:-contratos_app}"
 AUTH_USUARIO="${AUTH_USUARIO:-}"
 AUTH_CONTRASENA="${AUTH_CONTRASENA:-}"
 

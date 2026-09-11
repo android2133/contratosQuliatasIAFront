@@ -3,7 +3,7 @@ name: Deploy frontend (Firebase Hosting)
 on:
   push:
     branches:
-      - aHernandez_main-qualitas
+      - aHernandez_main-qualitas-prod
     paths:
       - 'src/**'
       - 'angular.json'
@@ -18,7 +18,7 @@ on:
         options: [dev, qa, prod]
 
 concurrency:
-  group: contratos-frontend-${{ inputs.environment || 'qa' }}
+  group: contratos-frontend-${{ inputs.environment || 'prod' }}
   cancel-in-progress: true
 
 permissions:
@@ -29,7 +29,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: ${{ inputs.environment || 'qa' }}
+    environment: ${{ inputs.environment || (github.ref_name == 'aHernandez_main-qualitas-prod' && 'prod' || 'qa') }}
     env:
       PROJECT_ID: ${{ vars.GCP_PROJECT }}
       REGION: ${{ vars.GCP_REGION || 'us-central1' }}
@@ -46,8 +46,8 @@ jobs:
       - id: auth
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: projects/846812080655/locations/global/workloadIdentityPools/github-pool-qa/providers/github-provider
-          service_account: firebase-hosting-deployer@qlts-dev-mx-au-ia-agentes.iam.gserviceaccount.com
+          workload_identity_provider: projects/204196621624/locations/global/workloadIdentityPools/github-pool-prod/providers/github-provider
+          service_account: firebase-hosting-deployer@qlts-pro-mx-au-ia-agentes.iam.gserviceaccount.com
 
       - uses: google-github-actions/setup-gcloud@v2
 

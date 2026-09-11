@@ -1,7 +1,7 @@
 {
   "hosting": [
     {
-      "target": "desa",
+      "target": "contratos_app",
       "public": "dist/coleccionador/browser",
       "ignore": [
         "firebase.json",
