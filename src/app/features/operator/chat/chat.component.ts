@@ -665,13 +665,18 @@ export class ChatComponent implements AfterViewChecked, OnInit {
   private mapHistorialAMensajes(detalle: ConversacionDetalle): Message[] {
     return detalle.historial.map((item) => {
       const role = item.role === 'model' ? 'assistant' : 'user';
-      const texto = item.parts.map((p) => p.text).join('\n');
+      const texto = item.parts.map((p) => p.text ?? '').join('\n').trim();
+      const artifact = item.parts.find((p) => !!p.artifact)?.artifact;
+      const documento: Documento | undefined = artifact
+        ? { nombre: artifact.nombre, mime_type: artifact.mime_type, base64: artifact.base64 }
+        : undefined;
       return {
         id: crypto.randomUUID(),
         role,
         content: texto,
         contentType: role === 'assistant' ? 'markdown' : 'text',
         timestamp: new Date(),
+        documento,
       };
     });
   }

@@ -5,16 +5,18 @@ import { ActivatedRoute } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import {
   LucideSearch, LucideUser, LucideBot, LucideTriangleAlert, LucideX,
+  LucideFileText, LucideDownload,
 } from '@lucide/angular';
 import { marked } from 'marked';
 import { OperadoresService } from '../../../core/services/operadores.service';
-import { ConversacionDetalle, ConversacionHistorialItem } from '../../../core/models/conversacion.model';
+import { ConversacionArtifact, ConversacionDetalle, ConversacionHistorialItem } from '../../../core/models/conversacion.model';
 
 @Component({
   selector: 'app-conversaciones',
   imports: [
     FormsModule,
     LucideSearch, LucideUser, LucideBot, LucideTriangleAlert, LucideX,
+    LucideFileText, LucideDownload,
   ],
   template: `
     <div class="h-full overflow-y-auto" style="background: var(--color-bg)">
@@ -128,15 +130,32 @@ import { ConversacionDetalle, ConversacionHistorialItem } from '../../../core/mo
                         <svg lucideBot class="w-4 h-4 text-white"></svg>
                       </div>
                       <div class="flex-1 max-w-2xl bg-white border border-slate-100 rounded-2xl rounded-tl-sm shadow-sm overflow-hidden">
-                        <div class="px-4 py-3">
-                          <div class="prose prose-sm prose-slate max-w-none
-                                      prose-headings:font-semibold prose-headings:text-slate-900
-                                      prose-p:text-slate-700 prose-p:leading-relaxed
-                                      prose-strong:text-slate-900 prose-li:text-slate-700
-                                      prose-blockquote:text-slate-500 prose-blockquote:border-accent-400
-                                      prose-code:text-accent-700 prose-code:bg-accent-50 prose-code:rounded prose-code:px-1"
-                            [innerHTML]="renderMarkdown(textoDe(item))"></div>
-                        </div>
+                        @if (textoDe(item)) {
+                          <div class="px-4 pt-3" [class.pb-3]="!artifactDe(item)">
+                            <div class="prose prose-sm prose-slate max-w-none
+                                        prose-headings:font-semibold prose-headings:text-slate-900
+                                        prose-p:text-slate-700 prose-p:leading-relaxed
+                                        prose-strong:text-slate-900 prose-li:text-slate-700
+                                        prose-blockquote:text-slate-500 prose-blockquote:border-accent-400
+                                        prose-code:text-accent-700 prose-code:bg-accent-50 prose-code:rounded prose-code:px-1"
+                              [innerHTML]="renderMarkdown(textoDe(item))"></div>
+                          </div>
+                        }
+                        @if (artifactDe(item); as artifact) {
+                          <div class="px-4 pb-3" [class.pt-3]="!textoDe(item)">
+                            <button (click)="descargarArtifact(artifact)" type="button"
+                              class="flex items-center gap-3 w-full text-left bg-accent-50 border border-accent-200 rounded-xl px-3 py-2.5 hover:bg-accent-100 transition-colors">
+                              <div class="w-8 h-8 rounded-lg bg-accent-100 flex items-center justify-center shrink-0">
+                                <svg lucideFileText class="w-4 h-4 text-accent-600"></svg>
+                              </div>
+                              <div class="flex-1 min-w-0">
+                                <p class="text-xs font-semibold text-slate-800 truncate">{{ artifact.nombre }}</p>
+                                <p class="text-xs text-slate-400">Toca para descargar</p>
+                              </div>
+                              <svg lucideDownload class="w-4 h-4 text-accent-600 shrink-0"></svg>
+                            </button>
+                          </div>
+                        }
                       </div>
                     </div>
                   }
@@ -210,7 +229,26 @@ export class ConversacionesComponent implements OnInit {
   }
 
   textoDe(item: ConversacionHistorialItem): string {
-    return item.parts.map((p) => p.text).join('\n');
+    return item.parts.map((p) => p.text ?? '').join('\n').trim();
+  }
+
+  artifactDe(item: ConversacionHistorialItem): ConversacionArtifact | undefined {
+    return item.parts.find((p) => !!p.artifact)?.artifact;
+  }
+
+  descargarArtifact(artifact: ConversacionArtifact): void {
+    const byteChars = atob(artifact.base64);
+    const byteNumbers = new Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) {
+      byteNumbers[i] = byteChars.charCodeAt(i);
+    }
+    const blob = new Blob([new Uint8Array(byteNumbers)], { type: artifact.mime_type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = artifact.nombre;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   renderMarkdown(content: string): SafeHtml {

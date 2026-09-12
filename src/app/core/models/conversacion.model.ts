@@ -7,8 +7,16 @@ export interface Conversacion {
   tokensTotal: number;
 }
 
+export interface ConversacionArtifact {
+  id?: number;
+  nombre: string;
+  mime_type: string;
+  base64: string;
+}
+
 export interface ConversacionParte {
-  text: string;
+  text?: string;
+  artifact?: ConversacionArtifact;
 }
 
 export interface ConversacionHistorialItem {
